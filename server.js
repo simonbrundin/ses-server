@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-var knex = require("knex")({
+var databas = require("knex")({
   client: "pg",
   connection: {
     host: "ec2-54-228-209-117.eu-west-1.compute.amazonaws.com",
@@ -11,7 +11,11 @@ var knex = require("knex")({
     ssl: true
   },
 });
-app.listen(process.env.PORT || 5000);
+
+const port = process.env.PORT;
+app.listen(port, () => {
+  console.log(port);
+});
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
@@ -28,9 +32,9 @@ app.get('/', (req, res) => {
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 
-knex
+databas
   .select("*")
   .from("users")
-  .then((data) => {
-    console.log(data);
+  .then((array) => {
+    console.log(array);
   });
