@@ -1,4 +1,5 @@
 const express = require('express');
+const { json } = require('express');
 const app = express();
 var databas = require("knex")({
   client: "pg",
@@ -12,7 +13,8 @@ var databas = require("knex")({
   },
 });
 
-const port = process.env.PORT;
+const port = process.env.PORT || 7777;
+
 app.listen(port, () => {
   console.log(port);
 });
@@ -20,21 +22,24 @@ app.listen(port, () => {
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-app.use((req, res, next) => {
+// Logga reguesten
+/* app.use((req, res, next) => {
   console.log(req.headers);
   next();
-})
+}) */
 
-app.get('/', (req, res) => {
-  res.send('Startsida');
+app.get('/udda', (req, res) => {
+  databas
+    .select("uddaveckor")
+    .from("spelare")
+    .where('ID', 7)
+    .then((array) => {
+      res.json(array[0].uddaveckor);
+    });
 });
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 
-databas
-  .select("*")
-  .from("users")
-  .then((array) => {
-    console.log(array);
-  });
+
+
