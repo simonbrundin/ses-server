@@ -1,6 +1,9 @@
 const express = require('express');
 const { json } = require('express');
 const app = express();
+
+var cors = require('cors');
+
 var databas = require("knex")({
   client: "pg",
   connection: {
@@ -16,29 +19,87 @@ var databas = require("knex")({
 const port = process.env.PORT || 7777;
 
 app.listen(port, () => {
-  console.log(port);
+  console.log('Porten är ' + port);
 });
 
+
+// Middleware - Gör saker med alla request innan de hanteras
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
-
+app.use(cors());
 // Logga reguesten
 /* app.use((req, res, next) => {
   console.log(req.headers);
   next();
 }) */
 
-app.get('/udda', (req, res) => {
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
+
+// ----------------------------------------------------------------------------
+
+// Skicka udda luckor
+app.post('/luckor', (req, res) => {
+  let uddaveckor = [];
+  let jämnaveckor = [];
+  let spelare = 7;
   databas
     .select("uddaveckor")
     .from("spelare")
-    .where('ID', 7)
+    .where('ID', spelare)
     .then((array) => {
-      res.json(array[0].uddaveckor);
+      uddaveckor = array[0].uddaveckor;
+      console.log(uddaveckor);
+
     });
+  databas
+    .select("jämnaveckor")
+    .from("spelare")
+    .where('ID', spelare)
+    .then((array) => {
+      jämnaveckor = array[0].jämnaveckor;
+      console.log(jämnaveckor);
+    });
+
+  if (uddaveckor == [] && jämnaveckor == []) {
+    let response = {
+      u: uddaveckor,
+      j: jämnaveckor
+    }
+    console.log(response);
+    res.json(response);
+  } else { null }
+
 });
 
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
+// Skicka jämna luckor
+/* app.get('/even', (req, res) => {
+  databas
+    .select("jämnaveckor")
+    .from("spelare")
+    .where('ID', 7)
+    .then((array) => {
+      res.json(array[0].jämnaveckor);
+    });
+}); */
+
+// Spara luckor
+app.post('/sparaluckor', (req, res) => {
+
+  databas('spelare')
+    .where({ ID: req.body.spelare })
+    .update({ uddaveckor: req.body.uddaLuckor }).then(() => {
+
+    });
+  databas('spelare')
+    .where({ ID: req.body.spelare })
+    .update({ jämnaveckor: req.body.jämnaLuckor }).then(() => {
+
+    });
+})
+
+
+
+
 
 
 
