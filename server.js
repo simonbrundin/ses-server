@@ -37,50 +37,59 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 // ----------------------------------------------------------------------------
 
-// Skicka udda luckor
+// Skicka spelarinfo
+
+app.post('/spelare', (req, res) => {
+
+
+
+  let spelare = req.body.spelare;
+  databas
+    .select("firstname")
+    .from("spelare")
+    .where('ID', spelare)
+    .then((array) => {
+      let förnamn = array[0].firstname;
+
+      res.json(förnamn);
+
+    })
+});
+
+
+
+
+
+// Hämta luckor
 app.post('/luckor', (req, res) => {
-  let uddaveckor = [];
-  let jämnaveckor = [];
-  let spelare = 7;
+
+
+
+  let spelare = req.body.spelare;
   databas
     .select("uddaveckor")
     .from("spelare")
     .where('ID', spelare)
     .then((array) => {
-      uddaveckor = array[0].uddaveckor;
-      console.log(uddaveckor);
+      let uddaveckor = array[0].uddaveckor;
+      databas
+        .select("jämnaveckor")
+        .from("spelare")
+        .where('ID', spelare)
+        .then((array) => {
+          let jämnaveckor = array[0].jämnaveckor;
 
+          /* let uddaveckor = this.uddaveckor; */
+          let response = {
+            u: uddaveckor,
+            j: jämnaveckor
+          }
+
+          res.json(response);
+
+        })
     });
-  databas
-    .select("jämnaveckor")
-    .from("spelare")
-    .where('ID', spelare)
-    .then((array) => {
-      jämnaveckor = array[0].jämnaveckor;
-      console.log(jämnaveckor);
-    });
-
-  if (uddaveckor == [] && jämnaveckor == []) {
-    let response = {
-      u: uddaveckor,
-      j: jämnaveckor
-    }
-    console.log(response);
-    res.json(response);
-  } else { null }
-
 });
-
-// Skicka jämna luckor
-/* app.get('/even', (req, res) => {
-  databas
-    .select("jämnaveckor")
-    .from("spelare")
-    .where('ID', 7)
-    .then((array) => {
-      res.json(array[0].jämnaveckor);
-    });
-}); */
 
 // Spara luckor
 app.post('/sparaluckor', (req, res) => {
@@ -97,6 +106,24 @@ app.post('/sparaluckor', (req, res) => {
     });
 })
 
+// Hämta matchindo
+
+app.post('/matchdata', (req, res) => {
+
+
+
+  let matchnr = req.body.matchnr;
+  databas
+    .select("hemma1")
+    .from("matcher-timrå-H2-södra")
+    .where('ID', matchnr)
+    .then((array) => {
+      let hemma1 = array[0].hemma1;
+
+      res.json(hemma1);
+
+    })
+});
 
 
 
