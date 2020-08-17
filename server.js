@@ -125,6 +125,7 @@ app.post('/matchluckor', (req, res) => {
     });
     var intersection2 = intersection1.filter(function (e) {
       return array[2].uddaveckor.indexOf(e) > -1;
+
     });
     var intersection3 = intersection2.filter(function (e) {
       return array[3].uddaveckor.indexOf(e) > -1;
