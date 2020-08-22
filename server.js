@@ -104,6 +104,7 @@ app.post('/sparaluckor', (req, res) => {
     .update({ jämnaveckor: req.body.evenSlots }).then(() => {
 
     });
+  res.json('sparat')
 })
 
 // Hämta möjliga matchtider
