@@ -96,12 +96,12 @@ app.post('/sparaluckor', (req, res) => {
 
   databas('spelare')
     .where({ ID: req.body.spelare })
-    .update({ uddaveckor: req.body.uddaLuckor }).then(() => {
+    .update({ uddaveckor: req.body.oddSlots }).then(() => {
 
     });
   databas('spelare')
     .where({ ID: req.body.spelare })
-    .update({ jämnaveckor: req.body.jämnaLuckor }).then(() => {
+    .update({ jämnaveckor: req.body.evenSlots }).then(() => {
 
     });
 })
