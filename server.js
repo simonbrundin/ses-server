@@ -85,7 +85,7 @@ app.post('/luckor', (req, res) => {
             u: uddaveckor,
             j: jämnaveckor
           }
-          console.log(response);
+          // console.log(response);
           res.json(response);
 
         })
@@ -222,11 +222,68 @@ app.post('/addplayerwithoutemail', (req, res) => {
 // Hämta resultat
 
 // Lägg till spelare i databas utan email
-app.post('/points', (req, res) => {
+app.post('/table/:city/:league', (req, res) => {
 
 
 
-  databas('matcher-timrå-1').sum('hemma1').then(sum => res.json(sum));
+
+  let playerArray = [];
+
+  databas('spelare').where({
+    city: req.params.city,
+    league: req.params.league
+  }).then(array => {
+
+    array.forEach(player => {
+      let playerID = player.ID;
+      let firstname = player.firstname;
+      let lastname = player.lastname;
+      let homePoints = 0;
+      let awayPoints = 0;
+      let total = 0;
+
+
+      databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).sum('pointshemma').then(sum => {
+        if (sum[0].sum === null) {
+          homePoints = 0;
+        } else {
+          homePoints = sum[0].sum;
+        }
+        homePoints = parseInt(homePoints);
+        databas('matcher-' + req.params.city + '-' + req.params.league).where('borta1', playerID).orWhere('borta2', playerID).sum('pointsborta').then(sum => {
+          if (sum[0].sum === null) {
+            awayPoints = 0;
+          } else {
+            awayPoints = sum[0].sum;
+          }
+          awayPoints = parseInt(awayPoints);
+          total = homePoints + awayPoints;
+
+          databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).orWhere('borta1', playerID).orWhere('borta2', playerID).count('pointsborta').then(count => {
+
+            let playerObject = {
+
+              name: firstname + ' ' + lastname,
+              matches: count[0].count,
+              ppm: 5,
+              points: total
+            }
+
+            playerArray.push(playerObject)
+            if (playerArray.length > 11) {
+              res.status(200).json(playerArray)
+            }
+          })
+        }
+        )
+      })
+    });
+
+  })
+
+
+
+
   // ({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league })
 
 
