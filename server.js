@@ -224,16 +224,12 @@ app.post('/addplayerwithoutemail', (req, res) => {
 // Lägg till spelare i databas utan email
 app.post('/table/:city/:league', (req, res) => {
 
-
-
-
   let playerArray = [];
 
   databas('spelare').where({
     city: req.params.city,
     league: req.params.league
   }).then(array => {
-
     array.forEach(player => {
       let playerID = player.ID;
       let firstname = player.firstname;
@@ -241,8 +237,6 @@ app.post('/table/:city/:league', (req, res) => {
       let homePoints = 0;
       let awayPoints = 0;
       let total = 0;
-
-
       databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).sum('pointshemma').then(sum => {
         if (sum[0].sum === null) {
           homePoints = 0;
@@ -258,38 +252,40 @@ app.post('/table/:city/:league', (req, res) => {
           }
           awayPoints = parseInt(awayPoints);
           total = homePoints + awayPoints;
-
           databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).orWhere('borta1', playerID).orWhere('borta2', playerID).count('pointsborta').then(count => {
-
+            let numberOfMatches = count[0].count;
+            let ppm = Math.round(total / count[0].count * 10) / 10;
             let playerObject = {
-
+              id: playerID,
               name: firstname + ' ' + lastname,
               matches: count[0].count,
-              ppm: 5,
+              ppm: ppm,
               points: total
             }
-
             playerArray.push(playerObject)
             if (playerArray.length > 11) {
               res.status(200).json(playerArray)
             }
           })
-        }
-        )
+        })
       })
     });
-
   })
+});
 
 
+// Hämta kommande matcher
+app.post('/upcoming', (req, res) => {
+  let city = req.body.city;
+  let league = req.body.league;
+  let playerID = req.body.playerID;
+  console.log(city, league, playerID)
 
 
-  // ({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league })
+  databas('matcher-' + city + '-' + league).select({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league }).then(res.json('ok'));
 
 
 
 
 
 });
-
-
