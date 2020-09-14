@@ -3,6 +3,7 @@ const { json } = require('express');
 const app = express();
 
 var cors = require('cors');
+const e = require('cors');
 
 var databas = require("knex")({
   client: "pg",
@@ -84,7 +85,7 @@ app.post('/luckor', (req, res) => {
             u: uddaveckor,
             j: jämnaveckor
           }
-
+          console.log(response);
           res.json(response);
 
         })
@@ -182,7 +183,56 @@ app.post('/matchdata', (req, res) => {
 
 
 
+// Lägg till spelare i databas med email
+app.post('/addplayer', (req, res) => {
+  let emailExists = false;
+
+  if (req.body.cont) {
+
+  }
+  databas('spelare').select('*').where('email', req.body.email).then((array) => {
+    if (array.length > 0) {
+      emailExists = true;
+      res.json('Du är redan anmäld')
+      console.log('Email finns');
+    } else {
+      databas('spelare').insert({ firstname: req.body.firstname, lastname: req.body.lastname, email: req.body.email, city: req.body.city, tel: req.body.tel, level: req.body.level }).then(res.json('ok'));
+
+    }
 
 
+  })
+});
+
+// Lägg till spelare i databas utan email
+app.post('/addplayerwithoutemail', (req, res) => {
+
+
+
+  databas('spelare').insert({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league }).then(res.json('ok'));
+
+
+
+
+
+});
+
+
+
+// Hämta resultat
+
+// Lägg till spelare i databas utan email
+app.post('/points', (req, res) => {
+
+
+
+  databas('matcher-timrå-1').sum('hemma1').then(sum => res.json(sum));
+  // ({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league })
+
+
+
+
+
+});
 
 
