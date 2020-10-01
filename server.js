@@ -112,10 +112,10 @@ app.post('/sparaluckor', (req, res) => {
 
 app.post('/matchluckor', (req, res) => {
   let hemma1 = 7;
-  let hemma2 = 5;
+  let hemma2 = 30;
   let borta1 = 10;
   let borta2 = 13;
-  databas.select('uddaveckor', 'jämnaveckor').from('spelare').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
+  databas('spelare').select('uddaveckor', 'jämnaveckor').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
 
     /* console.log(array[0]); */
     /* console.log('hemma1: udda veckor = ' + array[0].uddaveckor);
@@ -153,6 +153,7 @@ app.post('/matchluckor', (req, res) => {
 
 
       console.log(convertedSlots);
+      res.json(convertedSlots);
     }
 
   })
@@ -284,8 +285,78 @@ app.post('/upcoming', (req, res) => {
 
   databas('matcher-' + city + '-' + league).select({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league }).then(res.json('ok'));
 
+});
+
+// Hämta alla matcher i SES
+
+app.post('/allmatches', (req, res) => {
+
+  // hämta tabeller
+  let leagues = [];
+  let matches = [];
+  databas.raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").then(array => {
+    array.rows.forEach(table => {
+      let name = table.tablename;
+      if (name.startsWith('matcher-')) {
+        leagues.push(name)
+      } else {
+        null;
+      }
+    });
+
+    leagues.sort();
+
+    leagues.forEach(league => {
+      databas(league).select('*').then(array => {
+        let matchesInLeague = [];
+
+        matchesInLeague.push(league);
+        array.forEach(match => {
+          if (match.pointshemma + match.pointsborta === 6) {
+            match.status = 'rr'
+          } else {
+            match.status = 'nn'
+          };
+          matchesInLeague.push(match);
+        });
+
+        matches.push(matchesInLeague);
+        if (matches.length === leagues.length) {
+
+          res.json(matches);
+        } else {
+          null;
+        }
+
+
+      });
+
+
+    });
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 });
+
