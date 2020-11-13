@@ -7,12 +7,20 @@ const e = require('cors');
 
 var databas = require("knex")({
   client: "pg",
+  // connection: {
+  //   host: "ec2-54-228-209-117.eu-west-1.compute.amazonaws.com",
+  //   user: "gjedfoxspsphbk",
+  //   password:
+  //     "5b932fe02e6e00f011d1d99402f7b9c20563b7a48b65c57bd2874a83047f82bb",
+  //   database: "d5b9uiqv8vquho",
+  //   ssl: true
+  // },
   connection: {
-    host: "ec2-54-228-209-117.eu-west-1.compute.amazonaws.com",
-    user: "gjedfoxspsphbk",
+    host: "ec2-99-81-238-134.eu-west-1.compute.amazonaws.com",
+    user: "dvegibxguktzkr",
     password:
-      "5b932fe02e6e00f011d1d99402f7b9c20563b7a48b65c57bd2874a83047f82bb",
-    database: "d5b9uiqv8vquho",
+      "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
+    database: "dcb174s6rpt7sn",
     ssl: true
   },
 });
@@ -40,20 +48,13 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 // Skicka spelarinfo
 
-app.post('/spelare', (req, res) => {
-
-
-
-  let spelare = req.body.spelare;
+app.post('/getuser', (req, res) => {
   databas
-    .select("firstname")
+    .select("*")
     .from("spelare")
-    .where('ID', spelare)
+    .where('socialID', req.body.socialID)
     .then((array) => {
-      let förnamn = array[0].firstname;
-
-      res.json(förnamn);
-
+      res.json(array);
     })
 });
 
@@ -64,26 +65,24 @@ app.post('/spelare', (req, res) => {
 // Hämta luckor
 app.post('/luckor', (req, res) => {
 
-
-
   let spelare = req.body.spelare;
   databas
-    .select("uddaveckor")
+    .select("oddslots")
     .from("spelare")
-    .where('ID', spelare)
+    .where('socialID', spelare)
     .then((array) => {
-      let uddaveckor = array[0].uddaveckor;
+      let oddslots = array[0].oddslots;
       databas
-        .select("jämnaveckor")
+        .select("evenslots")
         .from("spelare")
-        .where('ID', spelare)
+        .where('socialID', spelare)
         .then((array) => {
-          let jämnaveckor = array[0].jämnaveckor;
+          let evenslots = array[0].evenslots;
 
-          /* let uddaveckor = this.uddaveckor; */
+          /* let oddslots = this.oddslots; */
           let response = {
-            u: uddaveckor,
-            j: jämnaveckor
+            u: oddslots,
+            j: evenslots
           }
           // console.log(response);
           res.json(response);
@@ -94,18 +93,24 @@ app.post('/luckor', (req, res) => {
 
 // Spara luckor
 app.post('/sparaluckor', (req, res) => {
+  console.log(req.body.oddSlots);
+  if (req.body.oddSlots !== []) {
+    databas('spelare')
+      .where({ socialID: req.body.spelare })
+      .update({ oddslots: req.body.oddSlots }).then(() => {
 
-  databas('spelare')
-    .where({ ID: req.body.spelare })
-    .update({ uddaveckor: req.body.oddSlots }).then(() => {
+      });
+  }
+  console.log(req.body.evenSlots);
+  if (req.body.evenslots !== []) {
+    databas('spelare')
+      .where({ socialID: req.body.spelare })
+      .update({ evenslots: req.body.evenSlots }).then(() => {
 
-    });
-  databas('spelare')
-    .where({ ID: req.body.spelare })
-    .update({ jämnaveckor: req.body.evenSlots }).then(() => {
+      });
 
-    });
-  res.json('sparat')
+  }
+  res.json('sparat');
 })
 
 // Hämta möjliga matchtider
@@ -115,22 +120,22 @@ app.post('/matchluckor', (req, res) => {
   let hemma2 = 30;
   let borta1 = 10;
   let borta2 = 13;
-  databas('spelare').select('uddaveckor', 'jämnaveckor').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
+  databas('spelare').select('oddslots', 'evenslots').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
 
     /* console.log(array[0]); */
-    /* console.log('hemma1: udda veckor = ' + array[0].uddaveckor);
-    console.log('hemma2: udda veckor = ' + array[1].uddaveckor);
-    console.log('borta1: udda veckor = ' + array[2].uddaveckor);
-    console.log('borta2: udda veckor = ' + array[3].uddaveckor); */
-    var intersection1 = array[0].uddaveckor.filter(function (e) {
-      return array[1].uddaveckor.indexOf(e) > -1;
+    /* console.log('hemma1: udda veckor = ' + array[0].oddslots);
+    console.log('hemma2: udda veckor = ' + array[1].oddslots);
+    console.log('borta1: udda veckor = ' + array[2].oddslots);
+    console.log('borta2: udda veckor = ' + array[3].oddslots); */
+    var intersection1 = array[0].oddslots.filter(function (e) {
+      return array[1].oddslots.indexOf(e) > -1;
     });
     var intersection2 = intersection1.filter(function (e) {
-      return array[2].uddaveckor.indexOf(e) > -1;
+      return array[2].oddslots.indexOf(e) > -1;
 
     });
     var intersection3 = intersection2.filter(function (e) {
-      return array[3].uddaveckor.indexOf(e) > -1;
+      return array[3].oddslots.indexOf(e) > -1;
     });
     if (intersection3.length < 2) {
       let uddaluckor = [];
@@ -218,6 +223,22 @@ app.post('/addplayerwithoutemail', (req, res) => {
 
 });
 
+// Uppdatera kontaktuppgifter
+
+app.post('/updateuser', (req, res) => {
+  databas('spelare').select('*').where('socialID', req.body.socialID).then((array) => {
+
+    if (array.length > 0) {
+      databas('spelare')
+        .where({ socialID: req.body.socialID })
+        .update({ firstname: req.body.firstName, lastname: req.body.lastName, email: req.body.email, tel: req.body.tel, }).then(() => {
+          res.json('Sparat');
+        });
+    } else {
+      databas('spelare').insert({ socialID: req.body.socialID, firstname: req.body.firstName, lastname: req.body.lastName, email: req.body.email, tel: req.body.tel }).then(res.json('Ny användare registrerad'));
+    }
+  })
+});
 
 
 // Hämta resultat
