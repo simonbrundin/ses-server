@@ -149,17 +149,21 @@ app.post('/updatecommonslots', (req, res) => {
           console.log('inga gemensamma udda luckor');
 
         } else {
-
+          let allCommonOddSlots = [];
           for (var i = 0, len = intersection3.length; i < len; i++) {
             let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
 
             let numberFromString = parseInt(dagMotNummer);
-            commonOddSlots.push(numberFromString);
+            allCommonOddSlots.push(numberFromString);
           }
-          commonOddSlots.sort();
+          allCommonOddSlots.sort();
 
-          for (let index = 0; index < commonOddSlots.length; index++) {
-            console.log(commonOddSlots[index + 1] - commonOddSlots[index]);
+          for (let index = 0; index < allCommonOddSlots.length; index++) {
+            if ((allCommonOddSlots[index + 1] - allCommonOddSlots[index]) === 100) {
+              commonOddSlots.push(allCommonOddSlots[index]);
+              let add30 = allCommonOddSlots[index] + 30;
+              commonOddSlots.push(add30);
+            };
 
 
 
@@ -183,18 +187,20 @@ app.post('/updatecommonslots', (req, res) => {
           console.log('inga gemensamma jämna luckor');
 
         } else {
-
+          let allCommonEvenSlots = [];
           for (var i = 0, len = intersection3.length; i < len; i++) {
             let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
 
             let numberFromString = parseInt(dagMotNummer);
-            commonEvenSlots.push(numberFromString);
+            allCommonEvenSlots.push(numberFromString);
           }
-          commonEvenSlots.sort();
-
-          for (let index = 0; index < commonEvenSlots.length; index++) {
-            const element = array[index];
-
+          allCommonEvenSlots.sort();
+          for (let index = 0; index < allCommonEvenSlots.length; index++) {
+            if ((allCommonEvenSlots[index + 1] - allCommonEvenSlots[index]) === 100) {
+              commonEvenSlots.push(allCommonEvenSlots[index]);
+              let add30 = allCommonEvenSlots[index] + 30;
+              commonEvenSlots.push(add30);
+            };
           }
         }
 
@@ -386,7 +392,7 @@ app.post('/allmatches', (req, res) => {
     });
 
     leagues.sort();
-
+    console.log(leagues);
     leagues.forEach(league => {
       databas(league).select('*').then(array => {
         let matchesInLeague = [];
