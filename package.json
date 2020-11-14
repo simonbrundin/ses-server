@@ -18,12 +18,12 @@
   },
   "homepage": "https://github.com/simonbrundin/ses-server#readme",
   "devDependencies": {
-    "nodemon": "^2.0.4"
+    "nodemon": "^2.0.6"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "knex": "^0.21.5",
-    "pg": "^8.3.2"
+    "knex": "^0.21.12",
+    "pg": "^8.5.1"
   }
 }

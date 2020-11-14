@@ -3,11 +3,11 @@
 var databas = require("knex")({
   client: "pg",
   connection: {
-    host: "ec2-54-228-209-117.eu-west-1.compute.amazonaws.com",
-    user: "gjedfoxspsphbk",
+    host: "ec2-99-81-238-134.eu-west-1.compute.amazonaws.com",
+    user: "dvegibxguktzkr",
     password:
-      "5b932fe02e6e00f011d1d99402f7b9c20563b7a48b65c57bd2874a83047f82bb",
-    database: "d5b9uiqv8vquho",
+      "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
+    database: "dcb174s6rpt7sn",
     ssl: true
   },
 });
@@ -15,9 +15,9 @@ var databas = require("knex")({
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 let city = 'Timrå';
-let league = 1;
-let leagueName = 'timrå-1'
-let numberOfPlayers = 12;
+let league = 'test';
+let leagueName = 'timrå-test'
+let numberOfPlayers = 4;
 
 
 let databaseName = 'matcher-' + leagueName;

@@ -7,14 +7,6 @@ const e = require('cors');
 
 var databas = require("knex")({
   client: "pg",
-  // connection: {
-  //   host: "ec2-54-228-209-117.eu-west-1.compute.amazonaws.com",
-  //   user: "gjedfoxspsphbk",
-  //   password:
-  //     "5b932fe02e6e00f011d1d99402f7b9c20563b7a48b65c57bd2874a83047f82bb",
-  //   database: "d5b9uiqv8vquho",
-  //   ssl: true
-  // },
   connection: {
     host: "ec2-99-81-238-134.eu-west-1.compute.amazonaws.com",
     user: "dvegibxguktzkr",
@@ -26,6 +18,8 @@ var databas = require("knex")({
 });
 
 const port = process.env.PORT || 7777;
+
+const appVersion = '1.0.0';
 
 app.listen(port, () => {
   console.log('Porten är ' + port);
@@ -45,6 +39,18 @@ app.use(cors());
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 // ----------------------------------------------------------------------------
+
+// Skicka appversion
+
+app.post('/getappversion', (req, res) => {
+
+  res.json(appVersion);
+
+});
+
+
+
+
 
 // Skicka spelarinfo
 
@@ -115,53 +121,105 @@ app.post('/sparaluckor', (req, res) => {
 
 // Hämta möjliga matchtider
 
-app.post('/matchluckor', (req, res) => {
-  let hemma1 = 7;
-  let hemma2 = 30;
-  let borta1 = 10;
-  let borta2 = 13;
-  databas('spelare').select('oddslots', 'evenslots').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
-
-    /* console.log(array[0]); */
-    /* console.log('hemma1: udda veckor = ' + array[0].oddslots);
-    console.log('hemma2: udda veckor = ' + array[1].oddslots);
-    console.log('borta1: udda veckor = ' + array[2].oddslots);
-    console.log('borta2: udda veckor = ' + array[3].oddslots); */
-    var intersection1 = array[0].oddslots.filter(function (e) {
-      return array[1].oddslots.indexOf(e) > -1;
-    });
-    var intersection2 = intersection1.filter(function (e) {
-      return array[2].oddslots.indexOf(e) > -1;
-
-    });
-    var intersection3 = intersection2.filter(function (e) {
-      return array[3].oddslots.indexOf(e) > -1;
-    });
-    if (intersection3.length < 2) {
-      let uddaluckor = [];
-      console.log('inga gemensamma luckor');
-
-    } else {
-      let convertedSlots = [];
-      for (var i = 0, len = intersection3.length; i < len; i++) {
-        let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
-        console.log(dagMotNummer);
-        let numberFromString = parseInt(dagMotNummer);
-        convertedSlots.push(numberFromString);
-      }
-      convertedSlots.sort();
-
-      for (let index = 0; index < convertedSlots.length; index++) {
-        const element = array[index];
-
-      }
+app.post('/updatecommonslots', (req, res) => {
+  databas('matcher-' + req.body.city + '-' + req.body.league).select('*').then((array) => {
+    array.forEach(match => {
 
 
-      console.log(convertedSlots);
-      res.json(convertedSlots);
-    }
+      let hemma1 = match.hemma1;
+      let hemma2 = match.hemma2;
+      let borta1 = match.borta1;
+      let borta2 = match.borta2;
+      databas('spelare').select('oddslots', 'evenslots').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
 
-  })
+        // Udda luckor
+        let commonOddSlots = [];
+        var intersection1 = array[0].oddslots.filter(function (e) {
+          return array[1].oddslots.indexOf(e) > -1;
+        });
+        var intersection2 = intersection1.filter(function (e) {
+          return array[2].oddslots.indexOf(e) > -1;
+        });
+        var intersection3 = intersection2.filter(function (e) {
+          return array[3].oddslots.indexOf(e) > -1;
+        });
+
+        if (intersection3.length < 2) {
+          commonOddSlots = [];
+          console.log('inga gemensamma udda luckor');
+
+        } else {
+
+          for (var i = 0, len = intersection3.length; i < len; i++) {
+            let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
+
+            let numberFromString = parseInt(dagMotNummer);
+            commonOddSlots.push(numberFromString);
+          }
+          commonOddSlots.sort();
+
+          for (let index = 0; index < commonOddSlots.length; index++) {
+            console.log(commonOddSlots[index + 1] - commonOddSlots[index]);
+
+
+
+          }
+        }
+
+        // Jämna luckor
+        let commonEvenSlots = [];
+        var intersection1 = array[0].evenslots.filter(function (e) {
+          return array[1].evenslots.indexOf(e) > -1;
+        });
+        var intersection2 = intersection1.filter(function (e) {
+          return array[2].evenslots.indexOf(e) > -1;
+        });
+        var intersection3 = intersection2.filter(function (e) {
+          return array[3].evenslots.indexOf(e) > -1;
+        });
+
+        if (intersection3.length < 2) {
+          commonEvenSlots = [];
+          console.log('inga gemensamma jämna luckor');
+
+        } else {
+
+          for (var i = 0, len = intersection3.length; i < len; i++) {
+            let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
+
+            let numberFromString = parseInt(dagMotNummer);
+            commonEvenSlots.push(numberFromString);
+          }
+          commonEvenSlots.sort();
+
+          for (let index = 0; index < commonEvenSlots.length; index++) {
+            const element = array[index];
+
+          }
+        }
+
+
+
+        // Lägg till gemensamma luckor i matchdatabasen
+
+        databas('matcher-' + req.body.city + '-' + req.body.league)
+          .where({ ID: match.ID })
+          .update({
+            oddslots: commonOddSlots,
+            evenslots: commonEvenSlots
+          })
+          .then(() => {
+            console.log('klart');
+
+          });
+        res.json('klart');
+        // .then((row) => { console.log(row) })
+
+      })
+
+    })
+  });
+
 })
 
 
@@ -280,18 +338,20 @@ app.post('/table/:city/:league', (req, res) => {
             let playerObject = {
               id: playerID,
               name: firstname + ' ' + lastname,
-              matches: count[0].count,
+              matches: numberOfMatches,
               ppm: ppm,
               points: total
             }
             playerArray.push(playerObject)
-            if (playerArray.length > 11) {
-              res.status(200).json(playerArray)
+            if (playerArray.length === 4) {
+              res.json(playerArray);
             }
           })
         })
       })
     });
+
+
   })
 });
 
