@@ -14,10 +14,10 @@ var databas = require("knex")({
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
-let city = 'Timrå';
-let league = 'test';
-let leagueName = 'timrå-test'
-let numberOfPlayers = 4;
+let city = 'timra';
+let league = '1';
+let leagueName = 'timra-2'
+let numberOfPlayers = 12;
 
 
 let databaseName = 'matcher-' + leagueName;
