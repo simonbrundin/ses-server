@@ -40,6 +40,25 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 // ----------------------------------------------------------------------------
 
+// const getAllLeagueNames = async function () {
+//   return await getAllLeagueNamesAwait();
+// }
+
+const allLeagueNames = [];
+databas.raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+  .then(serier => {
+    serier.rows.forEach(table => {
+      let name = table.tablename;
+      if (name.startsWith('matcher-')) {
+        allLeagueNames.push(name);
+      }
+    })
+  })
+
+
+
+// ----------------------------------------------------------------------------
+
 // Skicka appversion
 
 app.post('/getappversion', (req, res) => {
@@ -48,7 +67,13 @@ app.post('/getappversion', (req, res) => {
 
 });
 
+// Skicka alla liganamn
 
+app.get('/getleaguenames', (req, res) => {
+  res.json(allLeagueNames)
+
+
+});
 
 
 
@@ -63,6 +88,58 @@ app.post('/getuser', (req, res) => {
       res.json(array);
     })
 });
+
+// Boka alla matcher i en serie
+
+app.post('/bookmatches', (req, res) => {
+
+
+  // Alla matcher som har gemensamma luckor sorterade efter ID
+  databas
+    .select("ID", 'oddslots', 'evenslots')
+    .from(req.body.league)
+    .where('commonslots' !== '{}')
+    .orderBy('ID')
+    .then((array) => {
+      // Gå igenom en match i taget - Går ju att testa att bara ta en match först genom [0]
+      array.forEach();
+      array[0]
+
+    })
+
+  res.json(array);
+
+  // Boka matchen i playtomic
+
+  // Lägg in den bokade tiden i databasen
+});
+
+// Skicka spelarnas namn för en viss match
+
+app.post('/getplayersnames', (req, res) => {
+
+  databas
+    .select("firstname", 'lastname', 'ID')
+    .from("spelare")
+    .where('ID', req.body.hemma1,)
+    .orWhere('ID', req.body.hemma2,)
+    .orWhere('ID', req.body.borta1,)
+    .orWhere('ID', req.body.borta2,)
+    .then((array) => {
+      let spelarObjekt = {};
+      array.forEach(spelare => {
+        spelarObjekt[spelare.ID] = {
+          firstname: '',
+          lastname: ''
+        };
+        spelarObjekt[spelare.ID].firstname = spelare.firstname;
+        spelarObjekt[spelare.ID].lastname = spelare.lastname;
+      })
+      res.json(spelarObjekt);
+    })
+});
+
+
 
 // Skicka matchinfo
 
@@ -369,6 +446,17 @@ app.post('/updateuser', (req, res) => {
   })
 });
 
+// Uppdatera matchinformation
+
+app.post('/updatematch', (req, res) => {
+
+  databas(req.body.league)
+    .where({ ID: req.body.ID })
+    .update({ pointshemma: req.body.pointshemma, pointsborta: req.body.pointsborta, }).then(() => {
+      res.json('Sparat');
+    });
+});
+
 
 // Hämta resultat
 
@@ -466,7 +554,7 @@ app.post('/allmatches', (req, res) => {
 
     leagues.forEach(league => {
       // Lägg till matcher från databasen i matcher-array 
-      databas(league.namn).select('*').then(matcher => {
+      databas(league.namn).select('*').orderBy('ID').then(matcher => {
         matcher.forEach(match => {
           league.matcher.push(match);
         });
