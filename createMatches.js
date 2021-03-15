@@ -1,5 +1,3 @@
-
-
 var databas = require("knex")({
   client: "pg",
   connection: {
@@ -8,19 +6,16 @@ var databas = require("knex")({
     password:
       "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
     database: "dcb174s6rpt7sn",
-    ssl: true
+    ssl: true,
   },
 });
 
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
-
-let city = 'timra';
-let league = '1';
-let leagueName = 'timra-2'
+let city = "timra";
+let league = "1";
+let leagueName = "timra-2";
 let numberOfPlayers = 12;
 
-
-let databaseName = 'matcher-' + leagueName;
+let databaseName = "matcher-" + leagueName;
 let players = {
   1: { playedOpponents: [], playedWith: [], id: 0 },
   2: { playedOpponents: [], playedWith: [], id: 0 },
@@ -37,12 +32,10 @@ let players = {
   13: { playedOpponents: [], playedWith: [], id: 0 },
   14: { playedOpponents: [], playedWith: [], id: 0 },
   15: { playedOpponents: [], playedWith: [], id: 0 },
-  16: { playedOpponents: [], playedWith: [], id: 0 }
+  16: { playedOpponents: [], playedWith: [], id: 0 },
 };
 
 let matches = [];
-
-
 
 function tournament(n) {
   for (var r = 1; r < n; r++) {
@@ -59,8 +52,6 @@ function tournament(n) {
       } else if (i % 2 === 0) {
         away1 = ((r + i - 2) % (n - 1)) + 2;
         away2 = ((n - 1 + r - i) % (n - 1)) + 2;
-
-
 
         players[home1].playedWith.push(home2);
         players[home1].playedOpponents.push(away1);
@@ -84,10 +75,17 @@ function tournament(n) {
           home1: home1,
           home2: home2,
           away1: away1,
-          away2: away2
+          away2: away2,
         });
 
-        databas(databaseName).insert({ hemma1: home1, hemma2: home2, borta1: away1, borta2: away2 }).then(console.log('ok'));
+        databas(databaseName)
+          .insert({
+            hemma1: home1,
+            hemma2: home2,
+            borta1: away1,
+            borta2: away2,
+          })
+          .then(console.log("ok"));
       } else {
         home1 = ((r + i - 2) % (n - 1)) + 2;
         home2 = ((n - 1 + r - i) % (n - 1)) + 2;
@@ -95,26 +93,24 @@ function tournament(n) {
     }
   }
 }
-databas('spelare').select('*').where({
-  city: city,
-  league: league
-}).then((array) => {
-  for (let index = 0; index < array.length; index++) {
-    const playerIndex = index + 1;
-    const element = array[index];
-    players[playerIndex].id = element.ID;
+databas("spelare")
+  .select("*")
+  .where({
+    city: city,
+    league: league,
+  })
+  .then((array) => {
+    for (let index = 0; index < array.length; index++) {
+      const playerIndex = index + 1;
+      const element = array[index];
+      players[playerIndex].id = element.ID;
+    }
+    tournament(numberOfPlayers);
+    console.log(players);
 
-
-  }
-  tournament(numberOfPlayers);
-  console.log(players);
-
-  console.log(matches);
-  console.log(matches.length);
-});
-
-
-
+    console.log(matches);
+    console.log(matches.length);
+  });
 
 // function newLeague(leagueName) {
 //   let database = 'matcher-' + leagueName;
@@ -122,8 +118,5 @@ databas('spelare').select('*').where({
 //   databas(database).insert({ hemma1: '1', hemma2: '2', borta1: '3', borta2: '4' }).then(console.log('ok'));
 
 // }
-
-
-
 
 // newLeague('timrå-1');

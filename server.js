@@ -1,9 +1,8 @@
-const express = require('express');
-const { json } = require('express');
+const express = require("express");
 const app = express();
 
-var cors = require('cors');
-const e = require('cors');
+var cors = require("cors");
+const e = require("cors");
 
 var databas = require("knex")({
   client: "pg",
@@ -13,18 +12,17 @@ var databas = require("knex")({
     password:
       "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
     database: "dcb174s6rpt7sn",
-    ssl: true
+    ssl: true,
   },
 });
 
 const port = process.env.PORT || 7777;
 
-const appVersion = '1.0.0';
+const appVersion = "1.0.0";
 
 app.listen(port, () => {
-  console.log('Porten är ' + port);
+  console.log("Porten är " + port);
 });
-
 
 // Middleware - Gör saker med alla request innan de hanteras
 app.use(express.urlencoded({ extended: false }));
@@ -36,8 +34,6 @@ app.use(cors());
   next();
 }) */
 
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
-
 // ----------------------------------------------------------------------------
 
 // const getAllLeagueNames = async function () {
@@ -45,67 +41,81 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 // }
 
 const allLeagueNames = [];
-databas.raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-  .then(serier => {
-    serier.rows.forEach(table => {
+databas
+  .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+  .then((serier) => {
+    serier.rows.forEach((table) => {
       let name = table.tablename;
-      if (name.startsWith('matcher-')) {
+      if (name.startsWith("matcher-")) {
         allLeagueNames.push(name);
       }
-    })
-  })
+    });
+  });
 
+const { auth } = require("express-openid-connect");
 
+const config = {
+  authRequired: false,
+  auth0Logout: true,
+  secret: "a long, randomly-generated string stored in env",
+  baseURL: "http://localhost:7777",
+  clientID: "K2VM3gLq4Jp5c7YWX9JSZtpiIM9aPVZK",
+  issuerBaseURL: "https://simonbrundin.eu.auth0.com",
+};
 
+// auth router attaches /login, /logout, and /callback routes to the baseURL
+app.use(auth(config));
+
+// req.isAuthenticated is provided from the auth router
+app.get("/", (req, res) => {
+  res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
+});
+
+const { requiresAuth } = require("express-openid-connect");
+
+app.get("/profile", requiresAuth(), (req, res) => {
+  res.send(JSON.stringify(req.oidc.user));
+});
 // ----------------------------------------------------------------------------
 
 // Skicka appversion
 
-app.post('/getappversion', (req, res) => {
-
+app.post("/getappversion", (req, res) => {
   res.json(appVersion);
-
 });
 
 // Skicka alla liganamn
 
-app.get('/getleaguenames', (req, res) => {
-  res.json(allLeagueNames)
-
-
+app.get("/getleaguenames", (req, res) => {
+  res.json(allLeagueNames);
 });
-
-
 
 // Skicka spelarinfo
 
-app.post('/getuser', (req, res) => {
+app.post("/getuser", (req, res) => {
   databas
     .select("*")
     .from("spelare")
-    .where('socialID', req.body.socialID)
+    .where("socialID", req.body.socialID)
     .then((array) => {
       res.json(array);
-    })
+    });
 });
 
 // Boka alla matcher i en serie
 
-app.post('/bookmatches', (req, res) => {
-
-
+app.post("/bookmatches", (req, res) => {
   // Alla matcher som har gemensamma luckor sorterade efter ID
   databas
-    .select("ID", 'oddslots', 'evenslots')
+    .select("ID", "oddslots", "evenslots")
     .from(req.body.league)
-    .where('commonslots' !== '{}')
-    .orderBy('ID')
+    .where("commonslots" !== "{}")
+    .orderBy("ID")
     .then((array) => {
       // Gå igenom en match i taget - Går ju att testa att bara ta en match först genom [0]
       array.forEach();
-      array[0]
-
-    })
+      array[0];
+    });
 
   res.json(array);
 
@@ -116,459 +126,529 @@ app.post('/bookmatches', (req, res) => {
 
 // Skicka spelarnas namn för en viss match
 
-app.post('/getplayersnames', (req, res) => {
-
+app.post("/getplayersnames", (req, res) => {
   databas
-    .select("firstname", 'lastname', 'ID')
+    .select("firstname", "lastname", "ID")
     .from("spelare")
-    .where('ID', req.body.hemma1,)
-    .orWhere('ID', req.body.hemma2,)
-    .orWhere('ID', req.body.borta1,)
-    .orWhere('ID', req.body.borta2,)
+    .where("ID", req.body.hemma1)
+    .orWhere("ID", req.body.hemma2)
+    .orWhere("ID", req.body.borta1)
+    .orWhere("ID", req.body.borta2)
     .then((array) => {
       let spelarObjekt = {};
-      array.forEach(spelare => {
+      array.forEach((spelare) => {
         spelarObjekt[spelare.ID] = {
-          firstname: '',
-          lastname: ''
+          firstname: "",
+          lastname: "",
         };
         spelarObjekt[spelare.ID].firstname = spelare.firstname;
         spelarObjekt[spelare.ID].lastname = spelare.lastname;
-      })
+      });
       res.json(spelarObjekt);
-    })
+    });
 });
-
-
 
 // Skicka matchinfo
 
-app.post('/matchinfo', (req, res) => {
+app.post("/matchinfo", (req, res) => {
   console.log(req.body.league);
   databas(req.body.league)
     .select("*")
-    .where('ID', req.body.matchID)
+    .where("ID", req.body.matchID)
     .then((array) => {
-
-
       res.json(array);
-    })
+    });
 });
 
 // Skicka spelarna som fyllt i schemat
 
-app.get('/players-without-league', (req, res) => {
+app.get("/players-without-league", (req, res) => {
   let spelareArray = [];
-  databas('spelare')
+  databas("spelare")
     .select("*")
-    .where('league', '')
+    .where("league", "")
     .then((array) => {
-      array.forEach(spelare => {
-        let namn = spelare.firstname + ' ' + spelare.lastname;
+      array.forEach((spelare) => {
+        let namn = spelare.firstname + " " + spelare.lastname;
         console.log(namn);
         spelareArray.push(namn);
-      })
-    }).then(() => { res.json(spelareArray); })
+      });
+    })
+    .then(() => {
+      res.json(spelareArray);
+    });
 });
 
 // Skicka ligor där alla platser är fulla
 
-app.get('/full-leagues', (req, res) => {
+app.get("/full-leagues", (req, res) => {
   let leagues = {};
   let fullLeagues = [];
-  databas('spelare')
+  databas("spelare")
     .select("*")
     .then((array) => {
-      array.forEach(spelare => {
+      array.forEach((spelare) => {
         if (leagues[spelare.league] > 0) {
           leagues[spelare.league]++;
         } else {
           leagues[spelare.league] = 1;
         }
-
-
-      })
-    }).then(() => {
+      });
+    })
+    .then(() => {
       for (league in leagues) {
         if (leagues[league] === 16) {
-          fullLeagues.push(league)
+          fullLeagues.push(league);
         }
       }
-    }).then(() => { res.json(fullLeagues); })
+    })
+    .then(() => {
+      res.json(fullLeagues);
+    });
 });
 
-
-
-
-
 // Hämta luckor
-app.post('/luckor', (req, res) => {
-
+app.post("/luckor", (req, res) => {
   let spelare = req.body.spelare;
   databas
     .select("oddslots")
     .from("spelare")
-    .where('socialID', spelare)
+    .where("socialID", spelare)
     .then((array) => {
       let oddslots = array[0].oddslots;
       databas
         .select("evenslots")
         .from("spelare")
-        .where('socialID', spelare)
+        .where("socialID", spelare)
         .then((array) => {
           let evenslots = array[0].evenslots;
 
           /* let oddslots = this.oddslots; */
           let response = {
             u: oddslots,
-            j: evenslots
-          }
+            j: evenslots,
+          };
           // console.log(response);
           res.json(response);
-
-        })
+        });
     });
 });
 
 // Spara luckor
-app.post('/sparaluckor', (req, res) => {
+app.post("/sparaluckor", (req, res) => {
   console.log(req.body.oddSlots);
   if (req.body.oddSlots !== []) {
-    databas('spelare')
+    databas("spelare")
       .where({ socialID: req.body.spelare })
-      .update({ oddslots: req.body.oddSlots }).then(() => {
-
-      });
+      .update({ oddslots: req.body.oddSlots })
+      .then(() => {});
   }
   console.log(req.body.evenSlots);
   if (req.body.evenslots !== []) {
-    databas('spelare')
+    databas("spelare")
       .where({ socialID: req.body.spelare })
-      .update({ evenslots: req.body.evenSlots }).then(() => {
-
-      });
-
+      .update({ evenslots: req.body.evenSlots })
+      .then(() => {});
   }
-  res.json('sparat');
-})
+  res.json("sparat");
+});
 
 // Uppdatera gemensamma luckor
 
-app.get('/updatecommonslots', (req, res) => {
-  databas.raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").then(serier => {
-    serier.rows.forEach(table => {
-      let name = table.tablename;
-
-      if (name.startsWith('matcher-')) {
-        console.log(name);
-        databas(name).select('*').then((array) => {
-          array.forEach(match => {
-
-
-            let hemma1 = match.hemma1;
-            let hemma2 = match.hemma2;
-            let borta1 = match.borta1;
-            let borta2 = match.borta2;
-            databas('spelare').select('oddslots', 'evenslots').where('ID', hemma1).orWhere('ID', hemma2).orWhere('ID', borta1).orWhere('ID', borta2).then((array) => {
-
-              // Udda luckor
-              let commonOddSlots = [];
-              var intersection1 = array[0].oddslots.filter(function (e) {
-                return array[1].oddslots.indexOf(e) > -1;
-              });
-              var intersection2 = intersection1.filter(function (e) {
-                return array[2].oddslots.indexOf(e) > -1;
-              });
-              var intersection3 = intersection2.filter(function (e) {
-                return array[3].oddslots.indexOf(e) > -1;
-              });
-
-              if (intersection3.length < 2) {
-                commonOddSlots = [];
-                console.log('inga gemensamma udda luckor');
-
-              } else {
-                let allCommonOddSlots = [];
-                for (var i = 0, len = intersection3.length; i < len; i++) {
-                  let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
-
-                  let numberFromString = parseInt(dagMotNummer);
-                  allCommonOddSlots.push(numberFromString);
-                }
-                allCommonOddSlots.sort();
-
-                for (let index = 0; index < allCommonOddSlots.length; index++) {
-                  if ((allCommonOddSlots[index + 1] - allCommonOddSlots[index]) === 100) {
-                    commonOddSlots.push(allCommonOddSlots[index]);
-                    let add30 = allCommonOddSlots[index] + 30;
-                    commonOddSlots.push(add30);
-                  };
-
-
-
-                }
-              }
-
-              // Jämna luckor
-              let commonEvenSlots = [];
-              var intersection1 = array[0].evenslots.filter(function (e) {
-                return array[1].evenslots.indexOf(e) > -1;
-              });
-              var intersection2 = intersection1.filter(function (e) {
-                return array[2].evenslots.indexOf(e) > -1;
-              });
-              var intersection3 = intersection2.filter(function (e) {
-                return array[3].evenslots.indexOf(e) > -1;
-              });
-
-              if (intersection3.length < 2) {
-                commonEvenSlots = [];
-                console.log('inga gemensamma jämna luckor');
-
-              } else {
-                let allCommonEvenSlots = [];
-                for (var i = 0, len = intersection3.length; i < len; i++) {
-                  let dagMotNummer = intersection3[i].replace("M", "1").replace("Ti", "2").replace("O", "3").replace("To", "4").replace("F", "5").replace("L", "6").replace("S", "7");
-
-                  let numberFromString = parseInt(dagMotNummer);
-                  allCommonEvenSlots.push(numberFromString);
-                }
-                allCommonEvenSlots.sort();
-                for (let index = 0; index < allCommonEvenSlots.length; index++) {
-                  if ((allCommonEvenSlots[index + 1] - allCommonEvenSlots[index]) === 100) {
-                    commonEvenSlots.push(allCommonEvenSlots[index]);
-                    let add30 = allCommonEvenSlots[index] + 30;
-                    commonEvenSlots.push(add30);
-                  };
-                }
-              }
-
-
-
-              // Lägg till gemensamma luckor i matchdatabasen
-
-              databas(name)
-                .where({ ID: match.ID })
-                .update({
-                  oddslots: commonOddSlots,
-                  evenslots: commonEvenSlots
-                })
-                .then(() => {
-                  null;
-
-                });
-              res.json('klart');
-              // .then((row) => { console.log(row) })
-
-            })
-          })
-        });
-      } else {
-        null;
-      }
-    });
-  });
-});
-
-
-// Hämta matchdata
-
-app.post('/matchdata', (req, res) => {
-
-
-
-  let matchnr = req.body.matchID;
-  console.log(matchnr);
+app.get("/updatecommonslots", (req, res) => {
   databas
-    .select('*')
-    .from('spelare')
-    .join(req.body.league)
-    .where('ID', req.body.matchID)
-    .then((array) => {
-      console.log(array);
-      let hemma1 = array[0].hemma1;
+    .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+    .then((serier) => {
+      serier.rows.forEach((table) => {
+        let name = table.tablename;
 
-      res.json(hemma1);
+        if (name.startsWith("matcher-")) {
+          console.log(name);
+          databas(name)
+            .select("*")
+            .then((array) => {
+              array.forEach((match) => {
+                let hemma1 = match.hemma1;
+                let hemma2 = match.hemma2;
+                let borta1 = match.borta1;
+                let borta2 = match.borta2;
+                databas("spelare")
+                  .select("oddslots", "evenslots")
+                  .where("ID", hemma1)
+                  .orWhere("ID", hemma2)
+                  .orWhere("ID", borta1)
+                  .orWhere("ID", borta2)
+                  .then((array) => {
+                    // Udda luckor
+                    let commonOddSlots = [];
+                    var intersection1 = array[0].oddslots.filter(function (e) {
+                      return array[1].oddslots.indexOf(e) > -1;
+                    });
+                    var intersection2 = intersection1.filter(function (e) {
+                      return array[2].oddslots.indexOf(e) > -1;
+                    });
+                    var intersection3 = intersection2.filter(function (e) {
+                      return array[3].oddslots.indexOf(e) > -1;
+                    });
 
-    })
-});
+                    if (intersection3.length < 2) {
+                      commonOddSlots = [];
+                      console.log("inga gemensamma udda luckor");
+                    } else {
+                      let allCommonOddSlots = [];
+                      for (
+                        var i = 0, len = intersection3.length;
+                        i < len;
+                        i++
+                      ) {
+                        let dagMotNummer = intersection3[i]
+                          .replace("M", "1")
+                          .replace("Ti", "2")
+                          .replace("O", "3")
+                          .replace("To", "4")
+                          .replace("F", "5")
+                          .replace("L", "6")
+                          .replace("S", "7");
 
+                        let numberFromString = parseInt(dagMotNummer);
+                        allCommonOddSlots.push(numberFromString);
+                      }
+                      allCommonOddSlots.sort();
 
+                      for (
+                        let index = 0;
+                        index < allCommonOddSlots.length;
+                        index++
+                      ) {
+                        if (
+                          allCommonOddSlots[index + 1] -
+                            allCommonOddSlots[index] ===
+                          100
+                        ) {
+                          commonOddSlots.push(allCommonOddSlots[index]);
+                          let add30 = allCommonOddSlots[index] + 30;
+                          commonOddSlots.push(add30);
+                        }
+                      }
+                    }
 
-// Lägg till spelare i databas med email
-app.post('/addplayer', (req, res) => {
-  let emailExists = false;
+                    // Jämna luckor
+                    let commonEvenSlots = [];
+                    var intersection1 = array[0].evenslots.filter(function (e) {
+                      return array[1].evenslots.indexOf(e) > -1;
+                    });
+                    var intersection2 = intersection1.filter(function (e) {
+                      return array[2].evenslots.indexOf(e) > -1;
+                    });
+                    var intersection3 = intersection2.filter(function (e) {
+                      return array[3].evenslots.indexOf(e) > -1;
+                    });
 
-  if (req.body.cont) {
+                    if (intersection3.length < 2) {
+                      commonEvenSlots = [];
+                      console.log("inga gemensamma jämna luckor");
+                    } else {
+                      let allCommonEvenSlots = [];
+                      for (
+                        var i = 0, len = intersection3.length;
+                        i < len;
+                        i++
+                      ) {
+                        let dagMotNummer = intersection3[i]
+                          .replace("M", "1")
+                          .replace("Ti", "2")
+                          .replace("O", "3")
+                          .replace("To", "4")
+                          .replace("F", "5")
+                          .replace("L", "6")
+                          .replace("S", "7");
 
-  }
-  databas('spelare').select('*').where('email', req.body.email).then((array) => {
-    if (array.length > 0) {
-      emailExists = true;
-      res.json('Du är redan anmäld')
-      console.log('Email finns');
-    } else {
-      databas('spelare').insert({ firstname: req.body.firstname, lastname: req.body.lastname, email: req.body.email, city: req.body.city, tel: req.body.tel, level: req.body.level }).then(res.json('ok'));
+                        let numberFromString = parseInt(dagMotNummer);
+                        allCommonEvenSlots.push(numberFromString);
+                      }
+                      allCommonEvenSlots.sort();
+                      for (
+                        let index = 0;
+                        index < allCommonEvenSlots.length;
+                        index++
+                      ) {
+                        if (
+                          allCommonEvenSlots[index + 1] -
+                            allCommonEvenSlots[index] ===
+                          100
+                        ) {
+                          commonEvenSlots.push(allCommonEvenSlots[index]);
+                          let add30 = allCommonEvenSlots[index] + 30;
+                          commonEvenSlots.push(add30);
+                        }
+                      }
+                    }
 
-    }
+                    // Lägg till gemensamma luckor i matchdatabasen
 
-
-  })
-});
-
-// Lägg till spelare i databas utan email
-app.post('/addplayerwithoutemail', (req, res) => {
-
-
-
-  databas('spelare').insert({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league }).then(res.json('ok'));
-
-
-
-
-
-});
-
-// Uppdatera kontaktuppgifter
-
-app.post('/updateuser', (req, res) => {
-  databas('spelare').select('*').where('socialID', req.body.socialID).then((array) => {
-
-    if (array.length > 0) {
-      databas('spelare')
-        .where({ socialID: req.body.socialID })
-        .update({ firstname: req.body.firstName, lastname: req.body.lastName, email: req.body.email, tel: req.body.tel, }).then(() => {
-          res.json('Sparat');
-        });
-    } else {
-      databas('spelare').insert({ socialID: req.body.socialID, firstname: req.body.firstName, lastname: req.body.lastName, email: req.body.email, tel: req.body.tel, city: 'timra', oddslots: {}, evenslots: {} }).then(res.json('Ny användare registrerad'));
-    }
-  })
-});
-
-// Uppdatera matchinformation
-
-app.post('/updatematch', (req, res) => {
-
-  databas(req.body.league)
-    .where({ ID: req.body.ID })
-    .update({ pointshemma: req.body.pointshemma, pointsborta: req.body.pointsborta, }).then(() => {
-      res.json('Sparat');
-    });
-});
-
-
-// Hämta resultat
-
-// Lägg till spelare i databas utan email
-app.post('/table/:city/:league', (req, res) => {
-
-  let playerArray = [];
-
-  databas('spelare').where({
-    city: req.params.city,
-    league: req.params.league
-  }).then(array => {
-    array.forEach(player => {
-      let playerID = player.ID;
-      let firstname = player.firstname;
-      let lastname = player.lastname;
-      let homePoints = 0;
-      let awayPoints = 0;
-      let total = 0;
-      databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).sum('pointshemma').then(sum => {
-        if (sum[0].sum === null) {
-          homePoints = 0;
-        } else {
-          homePoints = sum[0].sum;
-        }
-        homePoints = parseInt(homePoints);
-        databas('matcher-' + req.params.city + '-' + req.params.league).where('borta1', playerID).orWhere('borta2', playerID).sum('pointsborta').then(sum => {
-          if (sum[0].sum === null) {
-            awayPoints = 0;
-          } else {
-            awayPoints = sum[0].sum;
-          }
-          awayPoints = parseInt(awayPoints);
-          total = homePoints + awayPoints;
-          databas('matcher-' + req.params.city + '-' + req.params.league).where('hemma1', playerID).orWhere('hemma2', playerID).orWhere('borta1', playerID).orWhere('borta2', playerID).count('pointsborta').then(count => {
-            let numberOfMatches = count[0].count;
-            let ppm = Math.round(total / count[0].count * 10) / 10;
-            let playerObject = {
-              id: playerID,
-              name: firstname + ' ' + lastname,
-              matches: numberOfMatches,
-              ppm: ppm,
-              points: total
-            }
-            playerArray.push(playerObject)
-            if (playerArray.length === 4) {
-              res.json(playerArray);
-            }
-          })
-        })
-      })
-    });
-
-
-  })
-});
-
-
-// Hämta kommande matcher
-app.post('/upcoming', (req, res) => {
-  let city = req.body.city;
-  let league = req.body.league;
-  let playerID = req.body.playerID;
-  console.log(city, league, playerID)
-
-
-  databas('matcher-' + city + '-' + league).select({ firstname: req.body.firstname, lastname: req.body.lastname, city: req.body.city, gender: req.body.gender, league: req.body.league }).then(res.json('ok'));
-
-});
-
-// Hämta alla matcher i SES
-
-app.post('/allmatches', (req, res) => {
-
-  // hämta tabeller
-  let leagues = [];
-  let matches = [];
-  databas.raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").then(serier => {
-    serier.rows.forEach(table => {
-      let name = table.tablename;
-      if (name.startsWith('matcher-')) {
-        // leagues.push(name)
-        let liga = {
-          namn: '',
-          matcher: []
-        };
-        liga.namn = name;
-        leagues.push(liga)
-      } else {
-        null;
-      }
-    });
-    let serieLength = serier.rows.length - 1;
-    let finishedLeagues = 0;
-
-    leagues.forEach(league => {
-      // Lägg till matcher från databasen i matcher-array 
-      databas(league.namn).select('*').orderBy('ID').then(matcher => {
-        matcher.forEach(match => {
-          league.matcher.push(match);
-        });
-      }).then(() => {
-        finishedLeagues++;
-        if (finishedLeagues === serieLength) {
-
-          console.log(leagues);
-          res.json(leagues);
+                    databas(name)
+                      .where({ ID: match.ID })
+                      .update({
+                        oddslots: commonOddSlots,
+                        evenslots: commonEvenSlots,
+                      })
+                      .then(() => {
+                        null;
+                      });
+                    res.json("klart");
+                    // .then((row) => { console.log(row) })
+                  });
+              });
+            });
         } else {
           null;
         }
       });
     });
-  });
 });
 
+// Hämta matchdata
+
+app.post("/matchdata", (req, res) => {
+  let matchnr = req.body.matchID;
+  console.log(matchnr);
+  databas
+    .select("*")
+    .from("spelare")
+    .join(req.body.league)
+    .where("ID", req.body.matchID)
+    .then((array) => {
+      console.log(array);
+      let hemma1 = array[0].hemma1;
+
+      res.json(hemma1);
+    });
+});
+
+// Lägg till spelare i databas med email
+app.post("/addplayer", (req, res) => {
+  let emailExists = false;
+
+  if (req.body.cont) {
+  }
+  databas("spelare")
+    .select("*")
+    .where("email", req.body.email)
+    .then((array) => {
+      if (array.length > 0) {
+        emailExists = true;
+        res.json("Du är redan anmäld");
+        console.log("Email finns");
+      } else {
+        databas("spelare")
+          .insert({
+            firstname: req.body.firstname,
+            lastname: req.body.lastname,
+            email: req.body.email,
+            city: req.body.city,
+            tel: req.body.tel,
+            level: req.body.level,
+          })
+          .then(res.json("ok"));
+      }
+    });
+});
+
+// Lägg till spelare i databas utan email
+app.post("/addplayerwithoutemail", (req, res) => {
+  databas("spelare")
+    .insert({
+      firstname: req.body.firstname,
+      lastname: req.body.lastname,
+      city: req.body.city,
+      gender: req.body.gender,
+      league: req.body.league,
+    })
+    .then(res.json("ok"));
+});
+
+// Uppdatera kontaktuppgifter
+
+app.post("/updateuser", (req, res) => {
+  databas("spelare")
+    .select("*")
+    .where("socialID", req.body.socialID)
+    .then((array) => {
+      if (array.length > 0) {
+        databas("spelare")
+          .where({ socialID: req.body.socialID })
+          .update({
+            firstname: req.body.firstName,
+            lastname: req.body.lastName,
+            email: req.body.email,
+            tel: req.body.tel,
+          })
+          .then(() => {
+            res.json("Sparat");
+          });
+      } else {
+        databas("spelare")
+          .insert({
+            socialID: req.body.socialID,
+            firstname: req.body.firstName,
+            lastname: req.body.lastName,
+            email: req.body.email,
+            tel: req.body.tel,
+            city: "timra",
+            oddslots: {},
+            evenslots: {},
+          })
+          .then(res.json("Ny användare registrerad"));
+      }
+    });
+});
+
+// Uppdatera matchinformation
+
+app.post("/updatematch", (req, res) => {
+  databas(req.body.league)
+    .where({ ID: req.body.ID })
+    .update({
+      pointshemma: req.body.pointshemma,
+      pointsborta: req.body.pointsborta,
+    })
+    .then(() => {
+      res.json("Sparat");
+    });
+});
+
+// Hämta resultat
+
+// Lägg till spelare i databas utan email
+app.post("/table/:city/:league", (req, res) => {
+  let playerArray = [];
+
+  databas("spelare")
+    .where({
+      city: req.params.city,
+      league: req.params.league,
+    })
+    .then((array) => {
+      array.forEach((player) => {
+        let playerID = player.ID;
+        let firstname = player.firstname;
+        let lastname = player.lastname;
+        let homePoints = 0;
+        let awayPoints = 0;
+        let total = 0;
+        databas("matcher-" + req.params.city + "-" + req.params.league)
+          .where("hemma1", playerID)
+          .orWhere("hemma2", playerID)
+          .sum("pointshemma")
+          .then((sum) => {
+            if (sum[0].sum === null) {
+              homePoints = 0;
+            } else {
+              homePoints = sum[0].sum;
+            }
+            homePoints = parseInt(homePoints);
+            databas("matcher-" + req.params.city + "-" + req.params.league)
+              .where("borta1", playerID)
+              .orWhere("borta2", playerID)
+              .sum("pointsborta")
+              .then((sum) => {
+                if (sum[0].sum === null) {
+                  awayPoints = 0;
+                } else {
+                  awayPoints = sum[0].sum;
+                }
+                awayPoints = parseInt(awayPoints);
+                total = homePoints + awayPoints;
+                databas("matcher-" + req.params.city + "-" + req.params.league)
+                  .where("hemma1", playerID)
+                  .orWhere("hemma2", playerID)
+                  .orWhere("borta1", playerID)
+                  .orWhere("borta2", playerID)
+                  .count("pointsborta")
+                  .then((count) => {
+                    let numberOfMatches = count[0].count;
+                    let ppm = Math.round((total / count[0].count) * 10) / 10;
+                    let playerObject = {
+                      id: playerID,
+                      name: firstname + " " + lastname,
+                      matches: numberOfMatches,
+                      ppm: ppm,
+                      points: total,
+                    };
+                    playerArray.push(playerObject);
+                    if (playerArray.length === 4) {
+                      res.json(playerArray);
+                    }
+                  });
+              });
+          });
+      });
+    });
+});
+
+// Hämta kommande matcher
+app.post("/upcoming", (req, res) => {
+  let city = req.body.city;
+  let league = req.body.league;
+  let playerID = req.body.playerID;
+  console.log(city, league, playerID);
+
+  databas("matcher-" + city + "-" + league)
+    .select({
+      firstname: req.body.firstname,
+      lastname: req.body.lastname,
+      city: req.body.city,
+      gender: req.body.gender,
+      league: req.body.league,
+    })
+    .then(res.json("ok"));
+});
+
+// Hämta alla matcher i SES
+
+app.post("/allmatches", (req, res) => {
+  // hämta tabeller
+  let leagues = [];
+  let matches = [];
+  databas
+    .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+    .then((serier) => {
+      serier.rows.forEach((table) => {
+        let name = table.tablename;
+        if (name.startsWith("matcher-")) {
+          // leagues.push(name)
+          let liga = {
+            namn: "",
+            matcher: [],
+          };
+          liga.namn = name;
+          leagues.push(liga);
+        } else {
+          null;
+        }
+      });
+      let serieLength = serier.rows.length - 1;
+      let finishedLeagues = 0;
+
+      leagues.forEach((league) => {
+        // Lägg till matcher från databasen i matcher-array
+        databas(league.namn)
+          .select("*")
+          .orderBy("ID")
+          .then((matcher) => {
+            matcher.forEach((match) => {
+              league.matcher.push(match);
+            });
+          })
+          .then(() => {
+            finishedLeagues++;
+            if (finishedLeagues === serieLength) {
+              console.log(leagues);
+              res.json(leagues);
+            } else {
+              null;
+            }
+          });
+      });
+    });
+});
