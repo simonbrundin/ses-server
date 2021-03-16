@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 
-// var cors = require("cors");
+var cors = require("cors");
 // const e = require("cors");
 
 var databas = require("knex")({
@@ -27,7 +27,7 @@ app.listen(port, () => {
 // Middleware - Gör saker med alla request innan de hanteras
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
-// app.use(cors());
+app.use(cors());
 // Logga reguesten
 /* app.use((req, res, next) => {
   console.log(req.headers);
