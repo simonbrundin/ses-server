@@ -20,20 +20,14 @@ const port = process.env.PORT || 4000;
 
 const appVersion = "1.0.0";
 
-app.listen(port, () => {
-  console.log("Porten är " + port);
-});
-
 // Middleware - Gör saker med alla request innan de hanteras
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Logga reguesten
-/* app.use((req, res, next) => {
-  console.log(req.headers);
-  next();
-}) */
+app.listen(port, () => {
+  console.log("Porten är " + port);
+});
 
 // ----------------------------------------------------------------------------
 
