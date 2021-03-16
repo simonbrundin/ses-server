@@ -186,6 +186,7 @@ app.get("/full-leagues", (req, res) => {
 
 // Hämta luckor
 app.post("/luckor", (req, res) => {
+  console.log(req.body.spelare);
   let spelare = req.body.spelare;
   databas("spelare")
     .where("socialID", spelare)
