@@ -1,8 +1,8 @@
 const express = require("express");
 const app = express();
 
-var cors = require("cors");
-const e = require("cors");
+// var cors = require("cors");
+// const e = require("cors");
 
 var databas = require("knex")({
   client: "pg",
@@ -16,7 +16,7 @@ var databas = require("knex")({
   },
 });
 
-const port = process.env.PORT || 7777;
+const port = process.env.PORT || 4000;
 
 const appVersion = "1.0.0";
 
@@ -27,7 +27,7 @@ app.listen(port, () => {
 // Middleware - Gör saker med alla request innan de hanteras
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
-app.use(cors());
+// app.use(cors());
 // Logga reguesten
 /* app.use((req, res, next) => {
   console.log(req.headers);
@@ -52,30 +52,6 @@ databas
     });
   });
 
-const { auth } = require("express-openid-connect");
-
-const config = {
-  authRequired: false,
-  auth0Logout: true,
-  secret: "a long, randomly-generated string stored in env",
-  baseURL: "http://localhost:7777",
-  clientID: "K2VM3gLq4Jp5c7YWX9JSZtpiIM9aPVZK",
-  issuerBaseURL: "https://simonbrundin.eu.auth0.com",
-};
-
-// auth router attaches /login, /logout, and /callback routes to the baseURL
-app.use(auth(config));
-
-// req.isAuthenticated is provided from the auth router
-app.get("/", (req, res) => {
-  res.send(req.oidc.isAuthenticated() ? "Logged in" : "Logged out");
-});
-
-const { requiresAuth } = require("express-openid-connect");
-
-app.get("/profile", requiresAuth(), (req, res) => {
-  res.send(JSON.stringify(req.oidc.user));
-});
 // ----------------------------------------------------------------------------
 
 // Skicka appversion
@@ -210,9 +186,7 @@ app.get("/full-leagues", (req, res) => {
 // Hämta luckor
 app.post("/luckor", (req, res) => {
   let spelare = req.body.spelare;
-  databas
-    .select("oddslots")
-    .from("spelare")
+  databas("spelare")
     .where("socialID", spelare)
     .then((array) => {
       let oddslots = array[0].oddslots;
@@ -224,12 +198,12 @@ app.post("/luckor", (req, res) => {
           let evenslots = array[0].evenslots;
 
           /* let oddslots = this.oddslots; */
-          let response = {
+          let luckor = {
             u: oddslots,
             j: evenslots,
           };
           // console.log(response);
-          res.json(response);
+          res.json(luckor);
         });
     });
 });
