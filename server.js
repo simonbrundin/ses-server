@@ -12,7 +12,7 @@ var databas = require("knex")({
     password:
       "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
     database: "dcb174s6rpt7sn",
-    ssl: true,
+    ssl: { rejectUnauthorized: false },
   },
 });
 
