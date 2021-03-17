@@ -1,22 +1,25 @@
 const express = require("express");
+const fs = require("fs");
+const cors = require("cors");
+var jwt = require("jsonwebtoken");
+require("dotenv").config();
+
 const app = express();
 
-const cors = require("cors");
-// const e = require("cors");
+const auth0PublicKey = fs.readFileSync("./auth0_public.key", "utf-8");
 
 var databas = require("knex")({
   client: "pg",
   connection: {
-    host: "ec2-99-81-238-134.eu-west-1.compute.amazonaws.com",
-    user: "dvegibxguktzkr",
-    password:
-      "7c2d2336f9ad43508386e6c5caa7839c995b3aac42eafbaeb2ef78b4273dc437",
-    database: "dcb174s6rpt7sn",
+    host: process.env.DATABASE_HOST,
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_DATABASE,
     ssl: { rejectUnauthorized: false },
   },
 });
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT;
 
 const appVersion = "1.0.0";
 
@@ -29,6 +32,18 @@ app.listen(port, () => {
   console.log("Porten är " + port);
 });
 
+function authenticateToken(req, res, next) {
+  // Gather the jwt access token from the request header
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (token === null) return res.sendStatus(401); // if there isn't any token
+
+  jwt.verify(token, auth0PublicKey, (err, user) => {
+    if (err !== null) return res.sendStatus(403).json("Förnya token");
+    req.user = user;
+    next(); // pass the execution off to whatever request the client intended
+  });
+}
 // ----------------------------------------------------------------------------
 
 // const getAllLeagueNames = async function () {
@@ -62,6 +77,57 @@ app.get("/getleaguenames", (req, res) => {
 });
 
 // Skicka spelarinfo
+function isUserExisting(socialID) {
+  return databas
+    .select("*")
+    .from("spelare")
+    .where("socialID", socialID)
+    .then((array) => {
+      if (array.length === 0) {
+        return false;
+      } else {
+        return true;
+      }
+    });
+}
+
+function createNewUser(socialID) {
+  databas
+    .into("spelare")
+    .insert({
+      socialID: socialID,
+    })
+    .then((data) => {
+      return data;
+    });
+}
+
+function getUser(socialID) {
+  return databas
+    .select("*")
+    .from("spelare")
+    .where("socialID", socialID)
+    .then((data) => {
+      return data;
+    });
+}
+
+app.get("/user", authenticateToken, async (req, res) => {
+  const socialID = req.user.sub;
+  switch (await isUserExisting(socialID)) {
+    case false:
+      createNewUser(socialID);
+      await getUser(socialID).then((user) => {
+        res.json(user);
+      });
+      break;
+    case true:
+      await getUser(socialID).then((user) => {
+        res.json(user);
+      });
+      break;
+  }
+});
 
 app.post("/getuser", (req, res) => {
   databas
