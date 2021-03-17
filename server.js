@@ -29,10 +29,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 app.use(function (req, res, next) {
-  res.header(
-    "Access-Control-Allow-Origin",
-    "https://superelitserien-server.herokuapp.com/"
-  );
+  res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept"
@@ -259,25 +256,18 @@ app.get("/full-leagues", (req, res) => {
 // Hämta luckor
 app.post("/luckor", (req, res) => {
   let spelare = req.body.spelare;
-  databas("spelare")
+  databas
+    .select("*")
+    .from("spelare")
     .where("socialID", spelare)
     .then((array) => {
       let oddslots = array[0].oddslots;
-      databas
-        .select("evenslots")
-        .from("spelare")
-        .where("socialID", spelare)
-        .then((array) => {
-          let evenslots = array[0].evenslots;
-
-          /* let oddslots = this.oddslots; */
-          let luckor = {
-            u: oddslots,
-            j: evenslots,
-          };
-          // console.log(response);
-          res.json(luckor);
-        });
+      let evenslots = array[0].evenslots;
+      let luckor = {
+        u: oddslots,
+        j: evenslots,
+      };
+      res.json(luckor);
     });
 });
 
