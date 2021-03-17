@@ -1,6 +1,6 @@
 const express = require("express");
 const fs = require("fs");
-const cors = require("cors");
+var cors = require("cors");
 var jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -27,6 +27,15 @@ const appVersion = "1.0.0";
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
+});
 
 app.listen(port, () => {
   console.log("Porten är " + port);
