@@ -23,10 +23,6 @@ const port = process.env.PORT;
 const appVersion = "1.0.0";
 
 // Middleware - Gör saker med alla request innan de hanteras
-app.use(cors());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
@@ -35,6 +31,9 @@ app.use(function (req, res, next) {
   );
   next();
 });
+app.use(cors());
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
 app.listen(port, () => {
   console.log("Porten är " + port);
@@ -47,7 +46,7 @@ function authenticateToken(req, res, next) {
   if (token === null) return res.sendStatus(401); // if there isn't any token
 
   jwt.verify(token, auth0PublicKey, (err, user) => {
-    if (err !== null) return res.sendStatus(403).json("Förnya token");
+    if (err !== null) return res.json("Förnya token").sendStatus(403);
     req.user = user;
     next(); // pass the execution off to whatever request the client intended
   });
