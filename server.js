@@ -10,12 +10,9 @@ const auth0PublicKey = fs.readFileSync("./auth0_public.key", "utf-8");
 
 var databas = require("knex")({
   client: "pg",
-  connection: {
-    host: process.env.DATABASE_HOST,
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_DATABASE,
-    ssl: { rejectUnauthorized: false },
+  connection: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
   },
 });
 
