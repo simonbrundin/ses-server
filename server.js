@@ -34,6 +34,7 @@ app.use(function (req, res, next) {
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.use(authenticateToken);
 
 app.listen(port, () => {
   console.log("Porten är " + port);
@@ -119,7 +120,7 @@ function getUser(socialID) {
     });
 }
 
-app.get("/user", authenticateToken, async (req, res) => {
+app.get("/user", async (req, res) => {
   const socialID = req.user.sub;
   switch (await isUserExisting(socialID)) {
     case false:
