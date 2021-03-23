@@ -84,7 +84,6 @@ app.get("/getleaguenames", (req, res) => {
   res.json(allLeagueNames);
 });
 
-// Skicka spelarinfo
 function isUserExisting(socialID) {
   return databas
     .select("*")
@@ -134,6 +133,115 @@ app.get("/user", async (req, res) => {
       break;
   }
 });
+app.get("/table/:city/:league", async (req, res) => {
+  let playerArray = [];
+
+  databas
+    .from("spelare")
+    .where({
+      city: req.params.city,
+      league: req.params.league,
+    })
+    .then((array) => {
+      array.forEach((player) => {
+        let playerID = player.ID;
+        let firstname = player.firstname;
+        let lastname = player.lastname;
+        let homePoints = 0;
+        let awayPoints = 0;
+        let total = 0;
+        databas("matcher-" + req.params.city + "-" + req.params.league)
+          .where("hemma1", playerID)
+          .orWhere("hemma2", playerID)
+          .sum("pointshemma")
+          .then((sum) => {
+            if (sum[0].sum === null) {
+              homePoints = 0;
+            } else {
+              homePoints = sum[0].sum;
+            }
+            homePoints = parseInt(homePoints);
+            databas("matcher-" + req.params.city + "-" + req.params.league)
+              .where("borta1", playerID)
+              .orWhere("borta2", playerID)
+              .sum("pointsborta")
+              .then((sum) => {
+                if (sum[0].sum === null) {
+                  awayPoints = 0;
+                } else {
+                  awayPoints = sum[0].sum;
+                }
+                awayPoints = parseInt(awayPoints);
+                total = homePoints + awayPoints;
+                databas("matcher-" + req.params.city + "-" + req.params.league)
+                  .where("hemma1", playerID)
+                  .orWhere("hemma2", playerID)
+                  .orWhere("borta1", playerID)
+                  .orWhere("borta2", playerID)
+                  .count("pointsborta")
+                  .then((count) => {
+                    let numberOfMatches = count[0].count;
+                    let ppm = Math.round((total / count[0].count) * 10) / 10;
+                    let playerObject = {
+                      id: playerID,
+                      name: firstname + " " + lastname,
+                      matches: numberOfMatches,
+                      ppm: ppm,
+                      points: total,
+                    };
+                    playerArray.push(playerObject);
+                    if (playerArray.length === 4) {
+                      res.json(playerArray);
+                    }
+                  });
+              });
+          });
+      });
+    });
+});
+app.get("/upcoming-games/:city/:league", async (req, res) => {
+  const socialID = req.user.sub;
+  const league = "matcher-" + req.params.city + "-" + req.params.league;
+  const matchID = league + ".ID";
+  const bookedtime = league + ".bookedtime";
+  databas
+    .select(
+      matchID,
+      bookedtime,
+      league + ".hemma1",
+      league + ".hemma2",
+      league + ".borta1",
+      league + ".borta2"
+    )
+    .from("spelare")
+    .join(league, function () {
+      this.on(league + ".hemma1", "=", "spelare.ID")
+        .onNotNull(bookedtime)
+        .orOn(league + ".hemma2", "=", "spelare.ID")
+        .orOn(league + ".borta1", "=", "spelare.ID")
+        .orOn(league + ".borta2", "=", "spelare.ID");
+    })
+    .where("spelare.socialID", socialID)
+    .then((data) => {
+      res.json(data);
+    });
+});
+app.put("/user", async (req, res) => {
+  const socialID = req.user.sub;
+  databas
+    .from("spelare")
+    .where({ socialID: socialID })
+    .update({
+      firstname: req.body.firstname,
+      lastname: req.body.lastname,
+      tel: req.body.tel,
+      email: req.body.email,
+    })
+    .then(() => {
+      console.log("User saved");
+      res.json("Användare uppdaterad");
+    });
+});
 app.put("/slots", async (req, res) => {
   const socialID = req.user.sub;
   databas
@@ -145,61 +253,90 @@ app.put("/slots", async (req, res) => {
       res.json("Sparade luckor");
     });
 });
-app.get("/luckor", async (req, res) => {
-  const socialID = req.user.sub;
-  switch (await isUserExisting(socialID)) {
-    case false:
-      createNewUserInDatabase(socialID);
-      await getUser(socialID).then((user) => {
-        res.json(user);
-      });
-      break;
-    case true:
-      await getUser(socialID).then((user) => {
-        let oddslots = user.oddslots;
-        let evenslots = user.evenslots;
-        let luckor = {
-          u: oddslots,
-          j: evenslots,
-        };
-        res.json(luckor);
-      });
-      res.json(user);
-
-      break;
-  }
-  // Skicka ligor där alla platser är fulla
-});
-app.get("/upcoming-games", async (req, res) => {
-  const socialID = req.user.sub;
-  const city = req.body.city;
-  const league = req.body.league;
+app.get("/admin/games", async (req, res) => {
+  // hämta tabeller
+  let leagues = [];
+  let matches = [];
   databas
-    .select("ID", "bookedtime")
-    .from("matcher-" + city + "-" + league)
-    .join("spelare")
-    .where({
-      "spelare.socialID": socialID,
+    .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+    .then((serier) => {
+      serier.rows.forEach((table) => {
+        let name = table.tablename;
+        if (name.startsWith("matcher-")) {
+          // leagues.push(name)
+          let liga = {
+            namn: "",
+            matcher: [],
+          };
+          liga.namn = name;
+          leagues.push(liga);
+        } else {
+          null;
+        }
+      });
+      let serieLength = serier.rows.length - 1;
+      let finishedLeagues = 0;
+
+      leagues.forEach((league) => {
+        // Lägg till matcher från databasen i matcher-array
+        databas(league.namn)
+          .select("*")
+          .orderBy("ID")
+          .then((matcher) => {
+            matcher.forEach((match) => {
+              league.matcher.push(match);
+            });
+          })
+          .then(() => {
+            finishedLeagues++;
+            if (finishedLeagues === serieLength) {
+              res.json(leagues);
+            } else {
+              null;
+            }
+          });
+      });
     });
 });
-// Hämta kommande matcher
-app.post("/upcoming", (req, res) => {
-  let city = req.body.city;
-  let league = req.body.league;
-  let playerID = req.body.playerID;
-  console.log(city, league, playerID);
-
-  databas("matcher-" + city + "-" + league)
-    .select({
-      firstname: req.body.firstname,
-      lastname: req.body.lastname,
-      city: req.body.city,
-      gender: req.body.gender,
-      league: req.body.league,
+app.get("/admin/todos/players-without-league", async (req, res) => {
+  let spelareArray = [];
+  databas
+    .from("spelare")
+    .select("*")
+    .where("league", "")
+    .then((array) => {
+      array.forEach((spelare) => {
+        let namn = spelare.firstname + " " + spelare.lastname;
+        spelareArray.push(namn);
+      });
     })
-    .then(res.json("ok"));
+    .then(() => {
+      res.json(spelareArray);
+    });
 });
-// Boka alla matcher i en serie
+
+app.get("/admin/game/:league/:matchID", async (req, res) => {
+  databas
+    .from(req.params.league)
+    .select("*")
+    .where("ID", req.params.matchID)
+    .then((array) => {
+      res.json(array);
+    });
+});
+app.put("/admin/game/:league/:matchID", (req, res) => {
+  databas
+    .from(req.params.league)
+    .where({ ID: req.params.matchID })
+    .update({
+      pointshemma: req.body.pointshemma,
+      pointsborta: req.body.pointsborta,
+    })
+    .then(() => {
+      console.log("Points saved");
+      res.json("Poäng sparade");
+    });
+});
 
 app.post("/bookmatches", (req, res) => {
   // Alla matcher som har gemensamma luckor sorterade efter ID
@@ -247,34 +384,7 @@ app.post("/getplayersnames", (req, res) => {
 
 // Skicka matchinfo
 
-app.post("/matchinfo", (req, res) => {
-  console.log(req.body.league);
-  databas(req.body.league)
-    .select("*")
-    .where("ID", req.body.matchID)
-    .then((array) => {
-      res.json(array);
-    });
-});
-
 // Skicka spelarna som fyllt i schemat
-
-app.get("/players-without-league", (req, res) => {
-  let spelareArray = [];
-  databas("spelare")
-    .select("*")
-    .where("league", "")
-    .then((array) => {
-      array.forEach((spelare) => {
-        let namn = spelare.firstname + " " + spelare.lastname;
-        console.log(namn);
-        spelareArray.push(namn);
-      });
-    })
-    .then(() => {
-      res.json(spelareArray);
-    });
-});
 
 app.get("/full-leagues", (req, res) => {
   let leagues = {};
@@ -300,43 +410,6 @@ app.get("/full-leagues", (req, res) => {
     .then(() => {
       res.json(fullLeagues);
     });
-});
-
-// Hämta luckor
-app.post("/luckor", (req, res) => {
-  let spelare = req.body.spelare;
-  databas
-    .select("*")
-    .from("spelare")
-    .where("socialID", spelare)
-    .then((array) => {
-      let oddslots = array[0].oddslots;
-      let evenslots = array[0].evenslots;
-      let luckor = {
-        u: oddslots,
-        j: evenslots,
-      };
-      res.json(luckor);
-    });
-});
-
-// Spara luckor
-app.post("/sparaluckor", (req, res) => {
-  console.log(req.body.oddSlots);
-  if (req.body.oddSlots !== []) {
-    databas("spelare")
-      .where({ socialID: req.body.spelare })
-      .update({ oddslots: req.body.oddSlots })
-      .then(() => {});
-  }
-  console.log(req.body.evenSlots);
-  if (req.body.evenslots !== []) {
-    databas("spelare")
-      .where({ socialID: req.body.spelare })
-      .update({ evenslots: req.body.evenSlots })
-      .then(() => {});
-  }
-  res.json("sparat");
 });
 
 // Uppdatera gemensamma luckor
@@ -553,42 +626,6 @@ app.post("/addplayerwithoutemail", (req, res) => {
     .then(res.json("ok"));
 });
 
-// Uppdatera kontaktuppgifter
-
-app.post("/updateuser", (req, res) => {
-  databas("spelare")
-    .select("*")
-    .where("socialID", req.body.socialID)
-    .then((array) => {
-      if (array.length > 0) {
-        databas("spelare")
-          .where({ socialID: req.body.socialID })
-          .update({
-            firstname: req.body.firstName,
-            lastname: req.body.lastName,
-            email: req.body.email,
-            tel: req.body.tel,
-          })
-          .then(() => {
-            res.json("Sparat");
-          });
-      } else {
-        databas("spelare")
-          .insert({
-            socialID: req.body.socialID,
-            firstname: req.body.firstName,
-            lastname: req.body.lastName,
-            email: req.body.email,
-            tel: req.body.tel,
-            city: "timra",
-            oddslots: {},
-            evenslots: {},
-          })
-          .then(res.json("Ny användare registrerad"));
-      }
-    });
-});
-
 // Uppdatera matchinformation
 
 app.post("/updatematch", (req, res) => {
@@ -606,117 +643,5 @@ app.post("/updatematch", (req, res) => {
 // Hämta resultat
 
 // Lägg till spelare i databas utan email
-app.get("/table/:city/:league", (req, res) => {
-  let playerArray = [];
-
-  databas("spelare")
-    .where({
-      city: req.params.city,
-      league: req.params.league,
-    })
-    .then((array) => {
-      array.forEach((player) => {
-        let playerID = player.ID;
-        let firstname = player.firstname;
-        let lastname = player.lastname;
-        let homePoints = 0;
-        let awayPoints = 0;
-        let total = 0;
-        databas("matcher-" + req.params.city + "-" + req.params.league)
-          .where("hemma1", playerID)
-          .orWhere("hemma2", playerID)
-          .sum("pointshemma")
-          .then((sum) => {
-            if (sum[0].sum === null) {
-              homePoints = 0;
-            } else {
-              homePoints = sum[0].sum;
-            }
-            homePoints = parseInt(homePoints);
-            databas("matcher-" + req.params.city + "-" + req.params.league)
-              .where("borta1", playerID)
-              .orWhere("borta2", playerID)
-              .sum("pointsborta")
-              .then((sum) => {
-                if (sum[0].sum === null) {
-                  awayPoints = 0;
-                } else {
-                  awayPoints = sum[0].sum;
-                }
-                awayPoints = parseInt(awayPoints);
-                total = homePoints + awayPoints;
-                databas("matcher-" + req.params.city + "-" + req.params.league)
-                  .where("hemma1", playerID)
-                  .orWhere("hemma2", playerID)
-                  .orWhere("borta1", playerID)
-                  .orWhere("borta2", playerID)
-                  .count("pointsborta")
-                  .then((count) => {
-                    let numberOfMatches = count[0].count;
-                    let ppm = Math.round((total / count[0].count) * 10) / 10;
-                    let playerObject = {
-                      id: playerID,
-                      name: firstname + " " + lastname,
-                      matches: numberOfMatches,
-                      ppm: ppm,
-                      points: total,
-                    };
-                    playerArray.push(playerObject);
-                    if (playerArray.length === 4) {
-                      res.json(playerArray);
-                    }
-                  });
-              });
-          });
-      });
-    });
-});
 
 // Hämta alla matcher i SES
-
-app.post("/allmatches", (req, res) => {
-  // hämta tabeller
-  let leagues = [];
-  let matches = [];
-  databas
-    .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-    .then((serier) => {
-      serier.rows.forEach((table) => {
-        let name = table.tablename;
-        if (name.startsWith("matcher-")) {
-          // leagues.push(name)
-          let liga = {
-            namn: "",
-            matcher: [],
-          };
-          liga.namn = name;
-          leagues.push(liga);
-        } else {
-          null;
-        }
-      });
-      let serieLength = serier.rows.length - 1;
-      let finishedLeagues = 0;
-
-      leagues.forEach((league) => {
-        // Lägg till matcher från databasen i matcher-array
-        databas(league.namn)
-          .select("*")
-          .orderBy("ID")
-          .then((matcher) => {
-            matcher.forEach((match) => {
-              league.matcher.push(match);
-            });
-          })
-          .then(() => {
-            finishedLeagues++;
-            if (finishedLeagues === serieLength) {
-              console.log(leagues);
-              res.json(leagues);
-            } else {
-              null;
-            }
-          });
-      });
-    });
-});
