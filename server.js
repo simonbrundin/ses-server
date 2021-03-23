@@ -98,8 +98,7 @@ function isUserExisting(socialID) {
       }
     });
 }
-
-function createNewUser(socialID) {
+function createNewUserInDatabase(socialID) {
   databas
     .into("spelare")
     .insert({
@@ -109,7 +108,6 @@ function createNewUser(socialID) {
       return data;
     });
 }
-
 function getUser(socialID) {
   return databas
     .select("*")
@@ -124,7 +122,7 @@ app.get("/user", async (req, res) => {
   const socialID = req.user.sub;
   switch (await isUserExisting(socialID)) {
     case false:
-      createNewUser(socialID);
+      createNewUserInDatabase(socialID);
       await getUser(socialID).then((user) => {
         res.json(user);
       });
@@ -136,17 +134,71 @@ app.get("/user", async (req, res) => {
       break;
   }
 });
-
-app.post("/getuser", (req, res) => {
+app.put("/slots", async (req, res) => {
+  const socialID = req.user.sub;
   databas
-    .select("*")
     .from("spelare")
-    .where("socialID", req.body.socialID)
-    .then((array) => {
-      res.json(array);
+    .where({ socialID: socialID })
+    .update({ oddslots: req.body.oddSlots, evenslots: req.body.evenSlots })
+    .then(() => {
+      console.log("Slots saved");
+      res.json("Sparade luckor");
     });
 });
+app.get("/luckor", async (req, res) => {
+  const socialID = req.user.sub;
+  switch (await isUserExisting(socialID)) {
+    case false:
+      createNewUserInDatabase(socialID);
+      await getUser(socialID).then((user) => {
+        res.json(user);
+      });
+      break;
+    case true:
+      await getUser(socialID).then((user) => {
+        let oddslots = user.oddslots;
+        let evenslots = user.evenslots;
+        let luckor = {
+          u: oddslots,
+          j: evenslots,
+        };
+        res.json(luckor);
+      });
+      res.json(user);
 
+      break;
+  }
+  // Skicka ligor där alla platser är fulla
+});
+app.get("/upcoming-games", async (req, res) => {
+  const socialID = req.user.sub;
+  const city = req.body.city;
+  const league = req.body.league;
+  databas
+    .select("ID", "bookedtime")
+    .from("matcher-" + city + "-" + league)
+    .join("spelare")
+    .where({
+      "spelare.socialID": socialID,
+    });
+});
+// Hämta kommande matcher
+app.post("/upcoming", (req, res) => {
+  let city = req.body.city;
+  let league = req.body.league;
+  let playerID = req.body.playerID;
+  console.log(city, league, playerID);
+
+  databas("matcher-" + city + "-" + league)
+    .select({
+      firstname: req.body.firstname,
+      lastname: req.body.lastname,
+      city: req.body.city,
+      gender: req.body.gender,
+      league: req.body.league,
+    })
+    .then(res.json("ok"));
+});
 // Boka alla matcher i en serie
 
 app.post("/bookmatches", (req, res) => {
@@ -223,8 +275,6 @@ app.get("/players-without-league", (req, res) => {
       res.json(spelareArray);
     });
 });
-
-// Skicka ligor där alla platser är fulla
 
 app.get("/full-leagues", (req, res) => {
   let leagues = {};
@@ -556,7 +606,7 @@ app.post("/updatematch", (req, res) => {
 // Hämta resultat
 
 // Lägg till spelare i databas utan email
-app.post("/table/:city/:league", (req, res) => {
+app.get("/table/:city/:league", (req, res) => {
   let playerArray = [];
 
   databas("spelare")
@@ -620,24 +670,6 @@ app.post("/table/:city/:league", (req, res) => {
           });
       });
     });
-});
-
-// Hämta kommande matcher
-app.post("/upcoming", (req, res) => {
-  let city = req.body.city;
-  let league = req.body.league;
-  let playerID = req.body.playerID;
-  console.log(city, league, playerID);
-
-  databas("matcher-" + city + "-" + league)
-    .select({
-      firstname: req.body.firstname,
-      lastname: req.body.lastname,
-      city: req.body.city,
-      gender: req.body.gender,
-      league: req.body.league,
-    })
-    .then(res.json("ok"));
 });
 
 // Hämta alla matcher i SES
