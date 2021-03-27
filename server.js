@@ -5,9 +5,6 @@ var jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
-
-const auth0PublicKey = fs.readFileSync("./auth0_public.key", "utf-8");
-
 var databas = require("knex")({
   client: "pg",
   connection: {
@@ -18,30 +15,31 @@ var databas = require("knex")({
   },
 });
 
-const port = process.env.PORT;
-
-const appVersion = "1.0.0";
-
 // Middleware - Gör saker med alla request innan de hanteras
-app.use(function (req, res, next) {
+app.use(cors());
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+app.use(setAuthenticationHeaders);
+app.use(authenticateToken);
+
+app.listen(process.env.PORT, () => {
+  console.log("Port " + process.env.PORT);
+});
+
+// ----------------------------------------------------------------------------
+
+// Skicka appversion
+function setAuthenticationHeaders(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept"
   );
   next();
-});
-app.use(cors());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-app.use(authenticateToken);
-
-app.listen(port, () => {
-  console.log("Porten är " + port);
-});
-
+}
 function authenticateToken(req, res, next) {
   // Gather the jwt access token from the request header
+  const auth0PublicKey = fs.readFileSync("./auth0_public.key", "utf-8");
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token === null) return res.sendStatus(401); // if there isn't any token
@@ -52,38 +50,6 @@ function authenticateToken(req, res, next) {
     next(); // pass the execution off to whatever request the client intended
   });
 }
-// ----------------------------------------------------------------------------
-
-// const getAllLeagueNames = async function () {
-//   return await getAllLeagueNamesAwait();
-// }
-
-const allLeagueNames = [];
-databas
-  .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-  .then((serier) => {
-    serier.rows.forEach((table) => {
-      let name = table.tablename;
-      if (name.startsWith("matcher-")) {
-        allLeagueNames.push(name);
-      }
-    });
-  });
-
-// ----------------------------------------------------------------------------
-
-// Skicka appversion
-
-app.post("/getappversion", (req, res) => {
-  res.json(appVersion);
-});
-
-// Skicka alla liganamn
-
-app.get("/getleaguenames", (req, res) => {
-  res.json(allLeagueNames);
-});
-
 function isUserExisting(socialID) {
   return databas
     .select("*")
@@ -114,6 +80,21 @@ function getUser(socialID) {
     .where("socialID", socialID)
     .then((data) => {
       return data;
+    });
+}
+function gamesSortedByCommonSlots(league) {
+  return databas
+    .from(league)
+    .select("*")
+    .then((array) => {
+      array.forEach((game) => {
+        let odd = game.oddslots.length;
+        let even = game.evenslots.length;
+        let total = odd + even;
+        game.total = total;
+      });
+      array.sort((a, b) => (a.total > b.total ? 1 : -1));
+      return array;
     });
 }
 
@@ -286,6 +267,13 @@ app.get("/admin/games", async (req, res) => {
             matcher.forEach((match) => {
               league.matcher.push(match);
             });
+            matcher.forEach((match) => {
+              let odd = match.oddslots.length;
+              let even = match.evenslots.length;
+              let total = odd + even;
+              match.total = total;
+            });
+            league.matcher.sort((a, b) => (a.total > b.total ? 1 : -1));
           })
           .then(() => {
             finishedLeagues++;
@@ -314,7 +302,6 @@ app.get("/admin/todos/players-without-league", async (req, res) => {
       res.json(spelareArray);
     });
 });
-
 app.get("/admin/game/:league/:matchID", async (req, res) => {
   databas
     .from(req.params.league)
@@ -324,7 +311,7 @@ app.get("/admin/game/:league/:matchID", async (req, res) => {
       res.json(array);
     });
 });
-app.put("/admin/game/:league/:matchID", (req, res) => {
+app.put("/admin/game/:league/:matchID", async (req, res) => {
   databas
     .from(req.params.league)
     .where({ ID: req.params.matchID })
@@ -333,88 +320,10 @@ app.put("/admin/game/:league/:matchID", (req, res) => {
       pointsborta: req.body.pointsborta,
     })
     .then(() => {
-      console.log("Points saved");
       res.json("Poäng sparade");
     });
 });
-
-app.post("/bookmatches", (req, res) => {
-  // Alla matcher som har gemensamma luckor sorterade efter ID
-  databas
-    .select("ID", "oddslots", "evenslots")
-    .from(req.body.league)
-    .where("commonslots" !== "{}")
-    .orderBy("ID")
-    .then((array) => {
-      // Gå igenom en match i taget - Går ju att testa att bara ta en match först genom [0]
-      array.forEach();
-      array[0];
-    });
-
-  res.json(array);
-
-  // Boka matchen i playtomic
-
-  // Lägg in den bokade tiden i databasen
-});
-
-// Skicka spelarnas namn för en viss match
-
-app.post("/getplayersnames", (req, res) => {
-  databas
-    .select("firstname", "lastname", "ID")
-    .from("spelare")
-    .where("ID", req.body.hemma1)
-    .orWhere("ID", req.body.hemma2)
-    .orWhere("ID", req.body.borta1)
-    .orWhere("ID", req.body.borta2)
-    .then((array) => {
-      let spelarObjekt = {};
-      array.forEach((spelare) => {
-        spelarObjekt[spelare.ID] = {
-          firstname: "",
-          lastname: "",
-        };
-        spelarObjekt[spelare.ID].firstname = spelare.firstname;
-        spelarObjekt[spelare.ID].lastname = spelare.lastname;
-      });
-      res.json(spelarObjekt);
-    });
-});
-
-// Skicka matchinfo
-
-// Skicka spelarna som fyllt i schemat
-
-app.get("/full-leagues", (req, res) => {
-  let leagues = {};
-  let fullLeagues = [];
-  databas("spelare")
-    .select("*")
-    .then((array) => {
-      array.forEach((spelare) => {
-        if (leagues[spelare.league] > 0) {
-          leagues[spelare.league]++;
-        } else {
-          leagues[spelare.league] = 1;
-        }
-      });
-    })
-    .then(() => {
-      for (league in leagues) {
-        if (leagues[league] === 16) {
-          fullLeagues.push(league);
-        }
-      }
-    })
-    .then(() => {
-      res.json(fullLeagues);
-    });
-});
-
-// Uppdatera gemensamma luckor
-
-app.get("/updatecommonslots", (req, res) => {
+app.put("/admin/common-slots", async (req, res) => {
   databas
     .raw("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
     .then((serier) => {
@@ -565,78 +474,73 @@ app.get("/updatecommonslots", (req, res) => {
       });
     });
 });
+app.get("/admin/slots-by-common", async (req, res) => {
+  const league = "matcher-timra-2";
+  await gamesSortedByCommonSlots(league).then((slots) => {
+    res.json(slots);
+  });
+});
 
-// Hämta matchdata
+app.post("/admin/book/:league", (req, res) => {
+  // Alla matcher som har gemensamma luckor sorterade efter ID
+  let games = gamesSortedByCommonSlots(req.params.league);
+  games.forEach((game) => {});
+  // Boka matchen i playtomic
 
-app.post("/matchdata", (req, res) => {
-  let matchnr = req.body.matchID;
-  console.log(matchnr);
+  // Lägg in den bokade tiden i databasen
+});
+
+// Skicka spelarnas namn för en viss match
+
+app.post("/getplayersnames", (req, res) => {
   databas
-    .select("*")
+    .select("firstname", "lastname", "ID")
     .from("spelare")
-    .join(req.body.league)
-    .where("ID", req.body.matchID)
+    .where("ID", req.body.hemma1)
+    .orWhere("ID", req.body.hemma2)
+    .orWhere("ID", req.body.borta1)
+    .orWhere("ID", req.body.borta2)
     .then((array) => {
-      console.log(array);
-      let hemma1 = array[0].hemma1;
-
-      res.json(hemma1);
+      let spelarObjekt = {};
+      array.forEach((spelare) => {
+        spelarObjekt[spelare.ID] = {
+          firstname: "",
+          lastname: "",
+        };
+        spelarObjekt[spelare.ID].firstname = spelare.firstname;
+        spelarObjekt[spelare.ID].lastname = spelare.lastname;
+      });
+      res.json(spelarObjekt);
     });
 });
 
-// Lägg till spelare i databas med email
-app.post("/addplayer", (req, res) => {
-  let emailExists = false;
+// Skicka matchinfo
 
-  if (req.body.cont) {
-  }
+// Skicka spelarna som fyllt i schemat
+
+app.get("/full-leagues", (req, res) => {
+  let leagues = {};
+  let fullLeagues = [];
   databas("spelare")
     .select("*")
-    .where("email", req.body.email)
     .then((array) => {
-      if (array.length > 0) {
-        emailExists = true;
-        res.json("Du är redan anmäld");
-        console.log("Email finns");
-      } else {
-        databas("spelare")
-          .insert({
-            firstname: req.body.firstname,
-            lastname: req.body.lastname,
-            email: req.body.email,
-            city: req.body.city,
-            tel: req.body.tel,
-            level: req.body.level,
-          })
-          .then(res.json("ok"));
-      }
-    });
-});
-
-// Lägg till spelare i databas utan email
-app.post("/addplayerwithoutemail", (req, res) => {
-  databas("spelare")
-    .insert({
-      firstname: req.body.firstname,
-      lastname: req.body.lastname,
-      city: req.body.city,
-      gender: req.body.gender,
-      league: req.body.league,
-    })
-    .then(res.json("ok"));
-});
-
-// Uppdatera matchinformation
-
-app.post("/updatematch", (req, res) => {
-  databas(req.body.league)
-    .where({ ID: req.body.ID })
-    .update({
-      pointshemma: req.body.pointshemma,
-      pointsborta: req.body.pointsborta,
+      array.forEach((spelare) => {
+        if (leagues[spelare.league] > 0) {
+          leagues[spelare.league]++;
+        } else {
+          leagues[spelare.league] = 1;
+        }
+      });
     })
     .then(() => {
-      res.json("Sparat");
+      for (league in leagues) {
+        if (leagues[league] === 16) {
+          fullLeagues.push(league);
+        }
+      }
+    })
+    .then(() => {
+      res.json(fullLeagues);
     });
 });
 
