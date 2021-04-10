@@ -192,7 +192,9 @@ app.get('/upcoming-games/:city/:league', async (req, res) => {
       league + '.hemma1',
       league + '.hemma2',
       league + '.borta1',
-      league + '.borta2'
+      league + '.borta2',
+      league + '.pointshemma',
+      league + '.pointsborta'
     )
     .from('spelare')
     .join(league, function () {
@@ -203,6 +205,7 @@ app.get('/upcoming-games/:city/:league', async (req, res) => {
         .orOn(league + '.borta2', '=', 'spelare.ID');
     })
     .where('spelare.socialID', socialID)
+    .orderBy(bookedtime)
     .then((data) => {
       res.json(data);
     });
